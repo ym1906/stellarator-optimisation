@@ -29,7 +29,3 @@ python stellarator_project/stellarator_build.ex.py
 ```
 
 The generated CAD will appear in a display. This CAD can facilitate further reactor component design and optimisation.
-
-## Running tests
-
-TODO

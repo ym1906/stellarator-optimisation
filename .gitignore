@@ -345,3 +345,4 @@ report.html
 */_version.py
 bluemira/
 simsopt/
+.vscode/
