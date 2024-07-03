@@ -1,0 +1,18 @@
+site_name: stellarator-project
+site_description: <set:docs-site-description>
+# site_url: <set:docs-site-url>
+repo_name: <set:repo-name>
+# repo_url: <set:repo-url>
+theme:
+  name: material
+watch:
+  - stellarator_project
+plugins:
+  - mkdocstrings
+  - search
+  - autorefs
+nav:
+  - index.md
+  - examples.md
+  - Code Reference:
+      - reactor.py: reference/stellarator_project.reactor.md

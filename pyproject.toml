@@ -1,0 +1,153 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stellarator-project"
+dynamic = ["version"]
+description = 'A template for Bluemira projects.'
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+keywords = []
+authors = [
+  # { name = "Graeme Turkington", email = "graeme.turkington@ukaea.uk" },
+]
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  # "Programming Language :: Python :: 3.10",
+]
+
+dependencies = ["numpy", "matplotlib"]
+
+[project.optional-dependencies]
+dev = ["pre-commit"]
+test = [
+  "pytest",
+  "coverage[toml]",
+  "pytest-html",
+  "pytest-metadata",
+  "pytest-json-report",
+]
+docs = ["mkdocs-material", "mkdocstrings[python]"]
+lint = ["ruff", "mypy"]
+
+[project.urls]
+Documentation = "https://github.com/{{ org-name }}/stellarator-project#readme"
+Issues = "https://github.com/{{ org-name }}/stellarator-project/issues"
+Source = "https://github.com/{{ org-name }}/stellarator-project"
+
+[tool.hatch.version]
+source = "vcs"
+[tool.hatch.build.hooks.vcs]
+version-file = "stellarator_project/_version.py"
+
+# env: default
+# [tool.hatch.envs.default]
+# type = "conda"
+# command = "conda"
+# python = "3.8"
+# environment-file = "bluemira/conda/environment.yml"
+# features = ["dev", "test", "docs", "lint"]
+
+# env: test
+# [tool.hatch.envs.test]
+# features = ["test"]
+# [[tool.hatch.envs.test.matrix]]
+# python = ["3.8", "3.10"]
+# [tool.hatch.envs.test.scripts]
+# tests = "pytest {args:tests}"
+# tests-cov = "coverage run -m pytest {args:tests}"
+# cov-report = ["- coverage combine", "coverage report"]
+# cov-all = ["tests-cov", "cov-report"]
+
+# env: docs
+# [tool.hatch.envs.docs]
+# features = ["docs"]
+# [tool.hatch.envs.docs.scripts]
+# build = "mkdocs build"
+# serve = "mkdocs serve"
+
+# env: lint
+# [tool.hatch.envs.lint]
+# detached = true                               # Don't inherit from default (does not download project dependencies)
+# dependencies = ["ruff", "mypy", "pre-commit"]
+# [tool.hatch.envs.lint.scripts]
+# typing = "mypy --install-types --non-interactive {args:src/stellarator_project tests}"
+# style = ["ruff {args:.}"]
+# fmt = ["pre-commit run --all-files --hook-stage manual"]
+# all = ["style", "typing"]
+
+# tool: ruff
+[tool.ruff]
+line-length = 80
+preview = true
+
+[tool.ruff.lint]
+exclude = [
+  ".git",
+  "__pycache__",
+  "documentation",
+  ".env",
+  ".idea",
+  ".pytest_cache",
+  "htmlcov",
+]
+select = ["ALL"]
+ignore = [
+  "ANN101", # Allow no type annotation for self in method
+  "ANN102", # Allow no type annotation for cls in classmethod
+  "ANN204", # Allow no type annotation for __init__ return
+  "D205", # Allow no blank lines after docstring
+  "B027", # Allow non-abstract empty methods in abstract base classes
+  "S105", # Ignore checks for possible passwords
+  "S106",
+  "S107",
+  "C901", # Ignore complexity
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
+  "COM812",
+  "ISC001",
+  "D107",
+]
+unfixable = [
+  "F401", # Don't touch unused imports
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["stellarator_project"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use magic values, assertions, and relative imports
+"tests/**/*" = ["PLR2004", "S101", "TID252"]
+"__init__.py" = ["F401", "F403"]
+"studies/**/*" = ["INP001", "CPY001"]
+
+[tool.ruff.lint.flake8-copyright]
+notice-rgx = "(?i)# SPDX-FileCopyrightText:\\s\\d{4}(-(\\d{4}|present))*"
+
+[tool.coverage.run]
+source_pkgs = ["stellarator_project", "tests"]
+branch = true
+parallel = true
+omit = ["stellarator_project/_version.py"]
+
+[tool.coverage.paths]
+fusrr = ["stellarator_project", "*/stellarator_project"]
+tests = ["tests", "*/stellarator_project/tests"]
+
+[tool.coverage.report]
+"exclude_also" = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+omit = ["stellarator_project/_version.py"]
