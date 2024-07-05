@@ -21,7 +21,7 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
 """
-A geometry tutorial for users.
+A stellarator build example.
 """
 
 # %% [markdown]
@@ -46,8 +46,12 @@ A geometry tutorial for users.
 
 # %%
 import json
+import os
+import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, List
+
+sys.path.append(os.path.abspath("../bluemira"))
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,6 +67,7 @@ from bluemira.geometry.coordinates import Coordinates
 from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.shell import BluemiraShell
 from bluemira.geometry.solid import BluemiraSolid
+from scipy.spatial.transform import Rotation
 
 # Some useful tools
 from bluemira.geometry.tools import (
@@ -90,66 +95,56 @@ def read_json(file_path: str) -> dict[str, Any]:
         return json.load(f)
 
 
-def align_to_surface(surface, path, offset=0.2):
-    """
-    Aligns the rectangle to be parallel to the surface of the plasma.
-    """
-    x, y, z = path.discretise()[0][1], path.discretise()[1][1], path.discretise()[2][1]
+import numpy as np
 
-    # Find the normal of the surface at the closest point
-    # Assuming `surface` has a method to get the normal vector at a point
-    # This might need adjusting depending on the actual method used
-    normal_vector = surface.get_normal_vector_at_point([x, y, z])
-    normal_vector /= np.linalg.norm(normal_vector)  # Normalize the normal vector
 
-    # Define rectangle points around the path point, aligned with the surface normal
-    tangent_vector = np.gradient([x, y, z], axis=1)
-    tangent_vector /= np.linalg.norm(tangent_vector, axis=0)  # Normalize tangent vector
+def align_to_surface(normal, point_on_surface, width, height):
+    # Ensure normal vector is normalized
+    normal = normal / np.linalg.norm(normal)
 
-    binormal_vector = np.cross(tangent_vector, normal_vector)
-    binormal_vector /= np.linalg.norm(
-        binormal_vector, axis=0
-    )  # Normalize binormal vector
+    # Find rotation to align normal with z-axis
+    z_axis = np.array([0, 0, 1])
+    rotation_vector = np.cross(normal, z_axis)
+    rotation_angle = np.arccos(np.dot(normal, z_axis))
+    rotation = Rotation.from_rotvec(rotation_vector * rotation_angle)
 
-    # Create the points for the rectangle
-    points = np.array([
-        [
-            x + offset * (-binormal_vector[0] - normal_vector[0]),
-            x + offset * (binormal_vector[0] - normal_vector[0]),
-            x + offset * (binormal_vector[0] + normal_vector[0]),
-            x + offset * (-binormal_vector[0] + normal_vector[0]),
-        ],
-        [
-            y + offset * (-binormal_vector[1] - normal_vector[1]),
-            y + offset * (binormal_vector[1] - normal_vector[1]),
-            y + offset * (binormal_vector[1] + normal_vector[1]),
-            y + offset * (-binormal_vector[1] + normal_vector[1]),
-        ],
-        [
-            z + offset * (-binormal_vector[2] - normal_vector[2]),
-            z + offset * (binormal_vector[2] - normal_vector[2]),
-            z + offset * (binormal_vector[2] + normal_vector[2]),
-            z + offset * (-binormal_vector[2] + normal_vector[2]),
-        ],
-    ])
+    # Define a rectangle in the xy-plane
+    v1 = np.array([1, 0, 0])
+    v2 = np.array([0, 1, 0])
+
+    # Rotate v1 and v2 according to the found rotation
+    v1_rotated = rotation.apply(v1)
+    v2_rotated = rotation.apply(v2)
+
+    # Calculate points for the rectangle
+    points = []
+    points.append(
+        point_on_surface - 0.5 * width * v1_rotated - 0.5 * height * v2_rotated
+    )
+    points.append(
+        point_on_surface + 0.5 * width * v1_rotated - 0.5 * height * v2_rotated
+    )
+    points.append(
+        point_on_surface + 0.5 * width * v1_rotated + 0.5 * height * v2_rotated
+    )
+    points.append(
+        point_on_surface - 0.5 * width * v1_rotated + 0.5 * height * v2_rotated
+    )
 
     return points
 
 
 generic_surface_filename = (
-    get_bluemira_path("", subfolder="examples/data/codes/simsopt")
-    + "/plasma_surface_nurbs_data.json"
+    "stellarator_project/data/plasma/finite_plasma_surface_nurbs_data.json"
 )
-
 generic_magnet_filename = (
-    get_bluemira_path("", subfolder="examples/data/codes/simsopt")
-    + "/magnets_nurbs_data.json"
+    "stellarator_project/data/magnets/finite_magnets_nurbs_data.json"
 )
-
+curve_surface_normals = "stellarator_project/data/magnets/normals_data.json"
 # Read in the json data
 generic_surface_data = read_json(generic_surface_filename)
 generic_magnet_data = read_json(generic_magnet_filename)
-
+curve_surface_normals_data = read_json(curve_surface_normals)
 
 # Create a plasma surface from NURBS surface data
 generic_plasma_surface = make_bsplinesurface(
@@ -164,89 +159,54 @@ generic_plasma_surface = make_bsplinesurface(
     periodic=False,
     check_rational=False,
 )
-
-# Now we create the magnets from NURBS curve data.
 generic_magnet_curves = []
-generic_magnet_solid = []
-rectangles = []
-for curve_dict in generic_magnet_data:
-    magnet_curve = make_bspline(
-        poles=curve_dict["poles"],
-        mults=curve_dict["mults"],
-        knots=curve_dict["internal_knot_vector"],
-        degree=curve_dict["degree"],
-        weights=curve_dict["weights"],
-        periodic=False,
-        check_rational=False,
-    )
-    generic_magnet_curves.append(magnet_curve)
-    path = BluemiraWire([magnet_curve])
-    x, y, z = path.discretise()[0][1], path.discretise()[1][1], path.discretise()[2][1]
-    points = align_to_surface(generic_plasma_surface, path)
 
-    rectangle = BluemiraFace(make_polygon(points, closed=True))
-    rectangles.append(rectangle)
-    solid = sweep_shape(rectangle.boundary[0], path, solid=False, frenet=True)
-    generic_magnet_solid.append(solid)
+# for curve_dict in generic_magnet_data:
+#     magnet_curve = make_bspline(
+#         poles=curve_dict["poles"],
+#         mults=curve_dict["mults"],
+#         knots=curve_dict["internal_knot_vector"],
+#         degree=curve_dict["degree"],
+#         weights=curve_dict["weights"],
+#         periodic=False,
+#         check_rational=False,
+#     )
+#     generic_magnet_curves.append(magnet_curve)
+
+
+def decode_nurbs_json(json_path: str) -> List[Any]:
+    with open(json_path, "r") as f:
+        coils_data = json.load(f)
+
+    generic_magnet_curves = []
+
+    for coil in coils_data:
+        for coil_name, filaments in coil.items():
+            for filament_name, curve_dict in filaments.items():
+                print(f"Decoding {coil_name} - {filament_name}...")
+                magnet_curve = make_bspline(
+                    poles=curve_dict["poles"],
+                    mults=curve_dict["mults"],
+                    knots=curve_dict["internal_knot_vector"],
+                    degree=curve_dict["degree"],
+                    weights=curve_dict["weights"],
+                    periodic=False,
+                    check_rational=False,
+                )
+                generic_magnet_curves.append(magnet_curve)
+
+    return generic_magnet_curves
+
+
+generic_magnet_curves = decode_nurbs_json(generic_magnet_filename)
 
 
 # print((path.discretise()[0][1], path.discretise()[1][1]), path.discretise()[2][1])
 
-
 # Show the CAD of the plasma surface and magnets.
-show_cad(generic_magnet_curves + [generic_plasma_surface] + rectangles)
-show_cad(generic_magnet_curves + [generic_plasma_surface] + generic_magnet_solid)
-# %% Plot a stellarator plasma surface and required magnets
-
-
-def read_json(file_path: str) -> dict[str, Any]:
-    """Read JSON data from a file."""
-    with open(file_path) as f:
-        return json.load(f)
-
-
-helias_surface_filename = (
-    get_bluemira_path("", subfolder="examples/data/codes/simsopt")
-    + "/helias_surface_nurbs_data.json"
+show_cad(generic_magnet_curves + [generic_plasma_surface])
+save_cad(
+    generic_magnet_curves + [generic_plasma_surface],
+    "plasmastellarator.stp",
 )
-
-helias_magnet_filename = (
-    get_bluemira_path("", subfolder="examples/data/codes/simsopt")
-    + "/helias_magnets_nurbs_data.json"
-)
-
-# Read in the json data
-helias_surface_data = read_json(helias_surface_filename)
-helias_magnet_data = read_json(helias_magnet_filename)
-
-# Create a plasma surface from NURBS surface data
-helias_plasma_surface = make_bsplinesurface(
-    poles=helias_surface_data["poles2d"],
-    mults_u=helias_surface_data["mults_u"],
-    mults_v=helias_surface_data["mults_v"],
-    knot_vector_u=helias_surface_data["internal_knot_vector_u"],
-    knot_vector_v=helias_surface_data["internal_knot_vector_v"],
-    degree_u=helias_surface_data["degree_u"],
-    degree_v=helias_surface_data["degree_v"],
-    weights=helias_surface_data["weights_reshaped"],
-    periodic=False,
-    check_rational=False,
-    label="splinsurface",
-)
-
-# Now we create the magnets from NURBS curve data.
-helias_magnet_curves = []
-for curve_dict in helias_magnet_data:
-    magnet_curve = make_bspline(
-        poles=curve_dict["poles"],
-        mults=curve_dict["mults"],
-        knots=curve_dict["internal_knot_vector"],
-        degree=curve_dict["degree"],
-        weights=curve_dict["weights"],
-        periodic=False,
-        check_rational=False,
-    )
-    helias_magnet_curves.append(magnet_curve)
-
-# Show the CAD of the plasma surface and magnets.
-show_cad(helias_magnet_curves + [helias_plasma_surface])
+# show_cad(generic_magnet_curves + [generic_plasma_surface] + generic_magnet_solid)
