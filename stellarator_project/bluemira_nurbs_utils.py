@@ -437,3 +437,49 @@ def curves_to_nurbs(curves: List[Any], export_path: str, plot: bool = False) -> 
         if plot:
             plot_nurbs_curve(nurbs)
     write_nurbs_curve_data_to_json(nurbs_curve_data_list, export_path)
+
+
+def filament_curves_to_nurbs(
+    curves: List[Any], numfil: int, export_path: str, plot: bool = False
+) -> None:
+    """Convert a list of simsopt curves to NURBS curves and export them as coils in a JSON file."""
+    print(curves)
+    total_curves = len(curves)
+    if total_curves % numfil != 0:
+        raise ValueError(
+            "The number of curves is not a multiple of the number of filaments per coil."
+        )
+
+    num_coils = total_curves // numfil
+
+    print(f"Total number of coils to process: {num_coils}")
+    print(f"Total number of filaments per coil: {numfil}")
+    print(f"Total number of curves provided: {total_curves}")
+
+    coils_data = []
+
+    for i in range(num_coils):
+        coil_data = {f"coil_{i + 1}": {}}
+
+        print(f"Processing coil {i + 1}...")
+
+        for j in range(numfil):
+            index = i * numfil + j
+            # print(f"  Processing filament {j + 1} for coil {i + 1} (index {index})...")
+
+            points = extract_points_from_simsopt_curve(curves[index])
+            nurbs = setup_nurbs_curve(points=points, degree=3)
+            nurbs_curve_data = extract_nurbs_curve_data(nurbs)
+
+            coil_data[f"coil_{i + 1}"][f"filament_{j + 1}"] = nurbs_curve_data.__dict__
+
+            if plot:
+                plot_nurbs_curve(nurbs)
+
+        coils_data.append(coil_data)
+        print(f"Finished processing coil {i + 1}")
+
+    with open(export_path, "w") as f:
+        json.dump(coils_data, f, indent=4)
+
+    print(f"Data successfully written to {export_path}")
