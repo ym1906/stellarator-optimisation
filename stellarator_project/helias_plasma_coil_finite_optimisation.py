@@ -59,7 +59,7 @@ CURVATURE_THRESHOLD = 5.0
 CURVATURE_WEIGHT = 1e-6
 MSC_THRESHOLD = 5
 MSC_WEIGHT = 1e-6
-MAXITER = 50 if in_github_actions else 400
+MAXITER = 50 if in_github_actions else 51
 
 OUT_DIR = "./output/"
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -178,20 +178,36 @@ DIST_MIN = 0.1
 DIST_PEN = 10
 # Number of iterations to perform:
 MAXITER = 50 if in_github_actions else 400
-base_curves_finite_build = sum(
-    [
-        create_multifilament_grid(
-            c,
-            numfilaments_n,
-            numfilaments_b,
-            gapsize_n,
-            gapsize_b,
-            rotation_order=rot_order,
-        )
-        for c in base_curves
-    ],
-    [],
-)
+# base_curves_finite_build = sum(
+#     [
+#         create_multifilament_grid(
+#             c,
+#             numfilaments_n,
+#             numfilaments_b,
+#             gapsize_n,
+#             gapsize_b,
+#             rotation_order=rot_order,
+#         )
+#         for c in base_curves
+#     ],
+#     [],
+# )
+# Create a dictionary to hold filaments for each base coil
+coil_filament_map = {}
+
+# Create the filaments and group them by coil name
+for i, base_curve in enumerate(base_curves):
+    coil_name = f"coil_{i+1}"
+    filaments = create_multifilament_grid(
+        base_curve,
+        numfilaments_n,
+        numfilaments_b,
+        gapsize_n,
+        gapsize_b,
+        rotation_order=rot_order,
+    )
+    coil_filament_map[coil_name] = filaments
+base_curves_finite_build = sum(coil_filament_map.values(), [])
 base_currents_finite_build = sum([[c] * nfil for c in base_currents], [])
 curves_fb = apply_symmetries_to_curves(base_curves_finite_build, s.nfp, True)
 currents_fb = apply_symmetries_to_currents(base_currents_finite_build, s.nfp, True)
@@ -204,9 +220,9 @@ bs.set_points(s.gamma().reshape((-1, 3)))
 # bs = BiotSavart(coils)
 # bs.set_points(s.gamma().reshape((-1, 3)))
 curves = [c.curve for c in coils_fb]
-for c in coils_fb:
-    print(c)
-    print(1)
+# for c in coils_fb:
+#     print(c)
+#     print(1)
 # Define the individual terms of the objective function
 # Define the objective function:
 Jf = SquaredFlux(s, bs)
@@ -278,10 +294,17 @@ bs.save(OUT_DIR + "biot_savart_opt.json")
 bluemira_nurbs_utils.surface_to_nurbs(
     simsopt_surface=s,
     export_path="/home/graeme/stellarator-project/stellarator_project/data/plasma/finite_plasma_surface_nurbs_data.json",
-    plot=False,
+    plot=True,
 )
 bluemira_nurbs_utils.curves_to_nurbs(
     curves=curves,
+    export_path="/home/graeme/stellarator-project/stellarator_project/data/magnets/finite_magnets_nurbs_data.json",
+    plot=False,
+)
+
+bluemira_nurbs_utils.filament_curves_to_nurbs(
+    curves=curves,
+    numfil=nfil,
     export_path="/home/graeme/stellarator-project/stellarator_project/data/magnets/finite_magnets_nurbs_data.json",
     plot=False,
 )

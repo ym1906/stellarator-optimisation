@@ -5,6 +5,7 @@ Script to import and optimize the HELIAS 5b coil configuration using SIMSOPT.
 """
 
 import os
+import json
 import numpy as np
 import h5py
 from matplotlib import pyplot as plt
@@ -278,3 +279,35 @@ bluemira_nurbs_utils.curves_to_nurbs(
     plot=False,
 )
 print(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma()))
+print(len(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma())))
+print(curves[1].gamma())
+
+
+def extract_curve_normals(surface, curves):
+    all_data = {}
+
+    for idx, curve in enumerate(curves):
+        curve_points = curve.gamma()
+        normals = bluemira_nurbs_utils.extract_normals(
+            surface, curve_points=curve_points
+        )
+        # Convert numpy arrays to lists for JSON serialization
+        all_data[f"curve_{idx}"] = {
+            "curve_points": curve_points.tolist(),
+            "normals": normals.tolist(),
+        }
+
+    return all_data
+
+
+# Extracting the normals for all curves
+all_normals_data = extract_curve_normals(s, curves)
+
+# Define the output path
+output_path = "/home/graeme/stellarator-project/stellarator_project/data/magnets/normals_data.json"
+
+# Save the data to a JSON file
+with open(output_path, "w") as json_file:
+    json.dump(all_normals_data, json_file, indent=4)
+
+print(f"Normals data saved to {output_path}")
