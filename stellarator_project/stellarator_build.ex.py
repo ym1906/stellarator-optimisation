@@ -50,6 +50,7 @@ import os
 import sys
 from pathlib import Path
 from typing import Any, List
+from bluemira.codes import _freecadapi as cadapi
 
 sys.path.append(os.path.abspath("../bluemira"))
 
@@ -68,6 +69,9 @@ from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.shell import BluemiraShell
 from bluemira.geometry.solid import BluemiraSolid
 from scipy.spatial.transform import Rotation
+import FreeCAD
+import Part
+from bluemira.geometry.tools import convert
 
 # Some useful tools
 from bluemira.geometry.tools import (
@@ -174,7 +178,12 @@ generic_magnet_curves = []
 #     generic_magnet_curves.append(magnet_curve)
 
 
-def decode_nurbs_json(json_path: str) -> List[Any]:
+class PartWrapper:
+    def __init__(self, shape):
+        self.shape = shape
+
+
+def create_magnet_from_nurbs(json_path: str) -> List[Any]:
     with open(json_path, "r") as f:
         coils_data = json.load(f)
 
@@ -182,9 +191,9 @@ def decode_nurbs_json(json_path: str) -> List[Any]:
 
     for coil in coils_data:
         for coil_name, filaments in coil.items():
+            filament_curves = []
             for filament_name, curve_dict in filaments.items():
-                print(f"Decoding {coil_name} - {filament_name}...")
-                magnet_curve = make_bspline(
+                magnet_filament_curve = cadapi.make_bspline(
                     poles=curve_dict["poles"],
                     mults=curve_dict["mults"],
                     knots=curve_dict["internal_knot_vector"],
@@ -193,20 +202,22 @@ def decode_nurbs_json(json_path: str) -> List[Any]:
                     periodic=False,
                     check_rational=False,
                 )
-                generic_magnet_curves.append(magnet_curve)
+                filament_curves.append(magnet_filament_curve)
+            # Create the lofted surface from the filament curves
+            loft = Part.makeLoft(filament_curves, True)
+            loft_part = PartWrapper(loft)
+            filament_curves.append(loft_part)
+            generic_magnet_curves.append(loft_part)
 
     return generic_magnet_curves
 
 
-generic_magnet_curves = decode_nurbs_json(generic_magnet_filename)
-
-
-# print((path.discretise()[0][1], path.discretise()[1][1]), path.discretise()[2][1])
+generic_magnet_curves = create_magnet_from_nurbs(generic_magnet_filename)
 
 # Show the CAD of the plasma surface and magnets.
+
 show_cad(generic_magnet_curves + [generic_plasma_surface])
 save_cad(
     generic_magnet_curves + [generic_plasma_surface],
     "plasmastellarator.stp",
 )
-# show_cad(generic_magnet_curves + [generic_plasma_surface] + generic_magnet_solid)
