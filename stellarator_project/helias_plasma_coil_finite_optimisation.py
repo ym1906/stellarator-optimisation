@@ -293,18 +293,18 @@ res = minimize(
 bs.save(OUT_DIR + "biot_savart_opt.json")
 bluemira_nurbs_utils.surface_to_nurbs(
     simsopt_surface=s,
-    export_path="/home/graeme/stellarator-project/stellarator_project/data/plasma/finite_plasma_surface_nurbs_data.json",
+    export_path="stellarator_project/data/plasma/finite_plasma_surface_nurbs_data.json",
     plot=True,
 )
 bluemira_nurbs_utils.curves_to_nurbs(
     curves=curves,
-    export_path="/home/graeme/stellarator-project/stellarator_project/data/magnets/finite_magnets_nurbs_data.json",
+    export_path="stellarator_project/data/magnets/finite_magnets_nurbs_data.json",
     plot=False,
 )
 
 bluemira_nurbs_utils.filament_curves_to_nurbs(
     curves=curves,
     numfil=nfil,
-    export_path="/home/graeme/stellarator-project/stellarator_project/data/magnets/finite_magnets_nurbs_data.json",
+    export_path="stellarator_project/data/magnets/finite_magnets_nurbs_data.json",
     plot=False,
 )
