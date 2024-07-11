@@ -48,44 +48,24 @@ A stellarator build example.
 import json
 import os
 import sys
-from pathlib import Path
 from typing import Any, List
-from bluemira.codes import _freecadapi as cadapi
 
 sys.path.append(os.path.abspath("../bluemira"))
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-from bluemira.base.file import get_bluemira_path
 
 # Some display functionality
-from bluemira.display import plotter, show_cad
-from bluemira.display.displayer import DisplayCADOptions
+from bluemira.codes import _freecadapi as cadapi
+from bluemira.display import show_cad
 
 # Basic objects
-from bluemira.geometry.coordinates import Coordinates
-from bluemira.geometry.face import BluemiraFace
-from bluemira.geometry.shell import BluemiraShell
-from bluemira.geometry.solid import BluemiraSolid
-from scipy.spatial.transform import Rotation
-import FreeCAD
 import Part
-from bluemira.geometry.tools import convert
 
 # Some useful tools
 from bluemira.geometry.tools import (
-    boolean_cut,
-    boolean_fuse,
-    extrude_shape,
-    interpolate_bspline,
-    make_bspline,
     make_bsplinesurface,
-    make_circle,
-    make_polygon,
-    revolve_shape,
     save_cad,
-    sweep_shape,
+    loft_shape,
+    make_bspline,
 )
 from bluemira.geometry.wire import BluemiraWire
 
@@ -99,83 +79,30 @@ def read_json(file_path: str) -> dict[str, Any]:
         return json.load(f)
 
 
-import numpy as np
-
-
-def align_to_surface(normal, point_on_surface, width, height):
-    # Ensure normal vector is normalized
-    normal = normal / np.linalg.norm(normal)
-
-    # Find rotation to align normal with z-axis
-    z_axis = np.array([0, 0, 1])
-    rotation_vector = np.cross(normal, z_axis)
-    rotation_angle = np.arccos(np.dot(normal, z_axis))
-    rotation = Rotation.from_rotvec(rotation_vector * rotation_angle)
-
-    # Define a rectangle in the xy-plane
-    v1 = np.array([1, 0, 0])
-    v2 = np.array([0, 1, 0])
-
-    # Rotate v1 and v2 according to the found rotation
-    v1_rotated = rotation.apply(v1)
-    v2_rotated = rotation.apply(v2)
-
-    # Calculate points for the rectangle
-    points = []
-    points.append(
-        point_on_surface - 0.5 * width * v1_rotated - 0.5 * height * v2_rotated
-    )
-    points.append(
-        point_on_surface + 0.5 * width * v1_rotated - 0.5 * height * v2_rotated
-    )
-    points.append(
-        point_on_surface + 0.5 * width * v1_rotated + 0.5 * height * v2_rotated
-    )
-    points.append(
-        point_on_surface - 0.5 * width * v1_rotated + 0.5 * height * v2_rotated
-    )
-
-    return points
-
-
-generic_surface_filename = (
+surface_filename = (
     "stellarator_project/data/plasma/finite_plasma_surface_nurbs_data.json"
 )
-generic_magnet_filename = (
-    "stellarator_project/data/magnets/finite_magnets_nurbs_data.json"
-)
-curve_surface_normals = "stellarator_project/data/magnets/normals_data.json"
+coil_filename = "stellarator_project/data/coils/finite_magnets_nurbs_data.json"
+curve_surface_normals = "stellarator_project/data/coils/normals_data.json"
 # Read in the json data
-generic_surface_data = read_json(generic_surface_filename)
-generic_magnet_data = read_json(generic_magnet_filename)
+surface_data = read_json(surface_filename)
+coil_data = read_json(coil_filename)
 curve_surface_normals_data = read_json(curve_surface_normals)
 
 # Create a plasma surface from NURBS surface data
-generic_plasma_surface = make_bsplinesurface(
-    poles=generic_surface_data["poles2d"],
-    mults_u=generic_surface_data["mults_u"],
-    mults_v=generic_surface_data["mults_v"],
-    knot_vector_u=generic_surface_data["internal_knot_vector_u"],
-    knot_vector_v=generic_surface_data["internal_knot_vector_v"],
-    degree_u=generic_surface_data["degree_u"],
-    degree_v=generic_surface_data["degree_v"],
-    weights=generic_surface_data["weights_reshaped"],
+plasma_surface = make_bsplinesurface(
+    poles=surface_data["poles2d"],
+    mults_u=surface_data["mults_u"],
+    mults_v=surface_data["mults_v"],
+    knot_vector_u=surface_data["internal_knot_vector_u"],
+    knot_vector_v=surface_data["internal_knot_vector_v"],
+    degree_u=surface_data["degree_u"],
+    degree_v=surface_data["degree_v"],
+    weights=surface_data["weights_reshaped"],
     periodic=False,
     check_rational=False,
 )
-generic_magnet_curves = []
-
-# for curve_dict in generic_magnet_data:
-#     magnet_curve = make_bspline(
-#         poles=curve_dict["poles"],
-#         mults=curve_dict["mults"],
-#         knots=curve_dict["internal_knot_vector"],
-#         degree=curve_dict["degree"],
-#         weights=curve_dict["weights"],
-#         periodic=False,
-#         check_rational=False,
-#     )
-#     generic_magnet_curves.append(magnet_curve)
+coil_curves = []
 
 
 class PartWrapper:
@@ -183,17 +110,18 @@ class PartWrapper:
         self.shape = shape
 
 
-def create_magnet_from_nurbs(json_path: str) -> List[Any]:
+def create_coil_from_nurbs(json_path: str) -> List[Any]:
     with open(json_path, "r") as f:
         coils_data = json.load(f)
 
-    generic_magnet_curves = []
-
+    coil_curves = []
+    coil = []
     for coil in coils_data:
         for coil_name, filaments in coil.items():
             filament_curves = []
+            filament_wires = []
             for filament_name, curve_dict in filaments.items():
-                magnet_filament_curve = cadapi.make_bspline(
+                coil_filament_curve = cadapi.make_bspline(
                     poles=curve_dict["poles"],
                     mults=curve_dict["mults"],
                     knots=curve_dict["internal_knot_vector"],
@@ -202,22 +130,41 @@ def create_magnet_from_nurbs(json_path: str) -> List[Any]:
                     periodic=False,
                     check_rational=False,
                 )
-                filament_curves.append(magnet_filament_curve)
+                coil_wire = make_bspline(
+                    poles=curve_dict["poles"],
+                    mults=curve_dict["mults"],
+                    knots=curve_dict["internal_knot_vector"],
+                    degree=curve_dict["degree"],
+                    weights=curve_dict["weights"],
+                    periodic=False,
+                    check_rational=False,
+                    label=filament_name,
+                )
+                filament_curves.append(coil_filament_curve)
+                filament_wires.append(coil_wire)
+
             # Create the lofted surface from the filament curves
+
             loft = Part.makeLoft(filament_curves, True)
+            print("L:", loft.Length, "A:", loft.Area, "V", loft.Volume)
+            loft_wire = loft_shape(
+                filament_wires, solid=True, ruled=True, closed=True, label=coil_name
+            )
+            print(loft_wire)
             loft_part = PartWrapper(loft)
-            filament_curves.append(loft_part)
-            generic_magnet_curves.append(loft_part)
+            print("lp", loft_part.shape.Volume)
+            # filament_curves.append(loft_part)
+            coil_curves.append(loft_wire)
+            # There is something not right about the volume, I am not using makeloft correctly..
+            # The volume is negative...and anyway we need to add filament thickness.
+    return coil_curves
 
-    return generic_magnet_curves
 
-
-generic_magnet_curves = create_magnet_from_nurbs(generic_magnet_filename)
-
-# Show the CAD of the plasma surface and magnets.
-
-show_cad(generic_magnet_curves + [generic_plasma_surface])
+coil_curves = create_coil_from_nurbs(coil_filename)
+# print(coil_curves)
+# Show the CAD of the plasma surface and coils.
+show_cad(coil_curves + [plasma_surface])
 save_cad(
-    generic_magnet_curves + [generic_plasma_surface],
+    coil_curves + [plasma_surface],
     "plasmastellarator.stp",
 )

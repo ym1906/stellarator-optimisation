@@ -268,6 +268,8 @@ s.to_vtk(OUT_DIR + "surf_opt_long", extra_data=pointData)
 # Save the optimized coil shapes and currents
 bs.save(OUT_DIR + "biot_savart_opt.json")
 plot(coils, engine="plotly", close=True)
+for c in coils:
+    print(c.volume)
 bluemira_nurbs_utils.surface_to_nurbs(
     simsopt_surface=s,
     export_path="/home/graeme/stellarator-project/stellarator_project/data/plasma/plasma_surface_nurbs_data.json",
