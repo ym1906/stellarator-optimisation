@@ -29,3 +29,5 @@ python stellarator_project/stellarator_build.ex.py
 ```
 
 The generated CAD will appear in a display. This CAD can facilitate further reactor component design and optimisation.
+
+![Alt text](https://github.com/ym1906/stellarator/blob/main/docs/stellarator_coils_cad.png)
