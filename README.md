@@ -9,25 +9,24 @@
 
 ## Running reactor designs
 
-In SIMSOPT, you can import and optimize a boundary shape from another code such as VMEC or generate or generate one from scratch.Similarly, you can import coils or generate generic ones and optimise them.
+In SIMSOPT, you can import and optimize a boundary shape from another code such as VMEC or generate one from scratch. Similarly, you can import coils or create generic ones and optimize them.
 
-We build a HELIAS 5B like stellarator in the example. This takes a plasma scenario, which is imported from VMEC output, and generates and optimises a set of coil required to achieve the magnetic properites for the plasma. The plasma surface and coils are converted into NURBS surfaces and curves and this data is used to generate CAD for use in Bluemira.
+In this example, we build a HELIAS 5B-like stellarator. We start by importing a plasma scenario from VMEC output, then generate and optimize a set of coils to achieve the desired magnetic properties for the plasma. The plasma surface and coils are converted into NURBS surfaces and curves, which are then used to generate CAD data for Bluemira.
 
 ```bash
 activate simsoptenv
 python stellarator_project/helias_plasma_coil_finite_optimisation.py
 ```
 
-The above script loads the VMEC file, and create a surface object in the SIMSOPT framework. Then, some generic coils and coil filaments are generated. These are optimised for simplicity (to aid construction), length and closeness. The coils have a finite build, comprised of filaments. This is then converted to NURBS data, which is stored and ready to be read by Bluemira.
+The script above loads the VMEC file and creates a surface object within the SIMSOPT framework. Next, it generates some generic coils and coil filaments, optimizing them for simplicity (to aid construction), length, and proximity. The coils, which have a finite build comprised of filaments, are then converted to NURBS data, ready for Bluemira.
 
-Bluemira can created CAD objects, from the NURBS data.
-First, active the bluemira enviornment and run the example:
+Bluemira can create CAD objects from the NURBS data. First, activate the Bluemira environment and run the example:
 
 ```bash
 conda activate bluemira
 python stellarator_project/stellarator_build.ex.py
 ```
 
-The generated CAD will appear in a display. This CAD can facilitate further reactor component design and optimisation.
+The generated CAD will appear in a display, facilitating further reactor component design and optimization.
 
 ![Alt text](https://github.com/ym1906/stellarator/blob/main/docs/stellarator_coils_cad.png)
