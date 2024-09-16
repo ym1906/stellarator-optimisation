@@ -7,5 +7,9 @@ from pathlib import Path
 
 from stellarator_project.stellarator import main
 
-build_config_path = Path(__file__, "config/config.json").resolve()
+build_config_path = Path(__file__, "../config/config.json").resolve()
 reactor = main(build_config_path)
+
+
+reactor.show_cad()
+reactor.save_cad("xyz", filename="plasmastellarator.stp")

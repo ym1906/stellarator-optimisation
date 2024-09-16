@@ -3,18 +3,15 @@
 # SPDX-License-Identifier: MIT
 """TF Coil Builder."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from bluemira.base.builder import Builder
 from bluemira.base.components import Component, PhysicalComponent
-from bluemira.base.parameter_frame import Parameter, ParameterFrame
-from bluemira.geometry.face import BluemiraFace
-from bluemira.geometry.tools import (
-    make_polygon,
-    offset_wire,
-    sweep_shape,
-)
-from bluemira.geometry.wire import BluemiraWire
+from bluemira.base.parameter_frame import ParameterFrame
+from bluemira.display.palettes import BLUE_PALETTE
+from bluemira.geometry.tools import loft_shape, make_bspline
 
 # The TF coil builder is then passed the centreline from the designer to create
 # the Component and the CAD of the TF coil.
@@ -28,9 +25,6 @@ from bluemira.geometry.wire import BluemiraWire
 class TFCoilBuilderParams(ParameterFrame):
     """Parameters for building a TF coil."""
 
-    tf_wp_width: Parameter[float]
-    tf_wp_depth: Parameter[float]
-
 
 class TFCoilBuilder(Builder):
     """Build a 3D model of a TF Coil from a given centre line."""
@@ -38,46 +32,61 @@ class TFCoilBuilder(Builder):
     params: TFCoilBuilderParams
     param_cls = TFCoilBuilderParams
 
-    def __init__(self, params: TFCoilBuilderParams, centreline: BluemiraWire):
+    def __init__(self, params: TFCoilBuilderParams, coils_data):
         super().__init__(params, {})
-        self.centreline = centreline
-
-    def make_tf_wp_xs(self) -> BluemiraWire:
-        """Make a wire for the cross-section of the winding pack in xy."""
-        width = 0.5 * self.params.tf_wp_width.value
-        depth = 0.5 * self.params.tf_wp_depth.value
-        return make_polygon(
-            {
-                "x": [-width, width, width, -width],
-                "y": [-depth, -depth, depth, depth],
-                "z": 0.0,
-            },
-            closed=True,
-        )
+        self.coils_data = coils_data
 
     def build(self) -> Component:
         """Run the full build for the TF coils."""
         return self.component_tree(
-            xz=[self.build_xz()],
-            xy=[Component("")],
-            xyz=[self.build_xyz()],
+            xz=None,
+            xy=None,
+            xyz=self.build_xyz(),
         )
 
-    def build_xz(self) -> PhysicalComponent:
-        """Build the xz Component of the TF coils."""
-        inner = offset_wire(
-            self.centreline,
-            -0.5 * self.params.tf_wp_width.value,
-        )
-        outer = offset_wire(
-            self.centreline,
-            0.5 * self.params.tf_wp_width.value,
-        )
-        return PhysicalComponent("Winding pack", BluemiraFace([outer, inner]))
-
-    def build_xyz(self) -> PhysicalComponent:
+    def build_xyz(self) -> list[PhysicalComponent]:
         """Build the xyz Component of the TF coils."""
-        wp_xs = self.make_tf_wp_xs()
-        wp_xs.translate((self.centreline.bounding_box.x_min, 0, 0))
-        volume = sweep_shape(wp_xs, self.centreline)
-        return PhysicalComponent("Winding pack", volume)
+        coils = []
+        for i, (name, filaments) in enumerate(self.coils_data.items()):
+            coil = PhysicalComponent(
+                f"Winding pack {i}", self.create_coil_from_nurbs(name, filaments)
+            )
+
+            coil.display_cad_options.color = BLUE_PALETTE["TF"]
+            coils.append(coil)
+        return coils
+
+    def create_coil_from_nurbs(self, name, filaments):
+        filament_wires = [
+            make_bspline(
+                poles=curve_dict["poles"],
+                mults=curve_dict["mults"],
+                knots=curve_dict["internal_knot_vector"],
+                degree=curve_dict["degree"],
+                weights=curve_dict["weights"],
+                periodic=False,
+                check_rational=False,
+                label=filament_name,
+            )
+            for filament_name, curve_dict in filaments.items()
+        ]
+
+        # Create the lofted surface from the filament curves
+        coil = loft_shape(
+            filament_wires,
+            solid=True,
+            ruled=True,
+            closed=True,
+            label=name,
+        )
+        print(
+            "L:",
+            coil.shape.Length,
+            "A:",
+            coil.shape.Area,
+            "V",
+            coil.shape.Volume,
+        )
+        # There is something not right about the volume, I am not using makeloft correctly..
+        # The volume is negative...and anyway we need to add filament thickness.
+        return coil

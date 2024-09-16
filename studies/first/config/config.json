@@ -2,81 +2,16 @@
   "params": {},
   "Plasma": {
     "designer": {
-      "params": {
-        "R_0": {
-          "value": 9.0,
-          "unit": "m",
-          "source": "Input",
-          "long_name": "Major radius"
-        },
-        "z_0": {
-          "value": 0.0,
-          "unit": "m",
-          "source": "Input",
-          "long_name": "Reference vertical coordinate"
-        },
-        "A": {
-          "value": 3.1,
-          "unit": "dimensionless",
-          "source": "Input",
-          "long_name": "Aspect ratio"
-        },
-        "kappa_u": {
-          "value": 1.6,
-          "unit": "dimensionless",
-          "source": "Input",
-          "long_name": "Upper elongation"
-        },
-        "kappa_l": {
-          "value": 1.8,
-          "unit": "dimensionless",
-          "source": "Input",
-          "long_name": "Lower elongation"
-        },
-        "delta_u": {
-          "value": 0.4,
-          "unit": "dimensionless",
-          "source": "Input",
-          "long_name": "Upper triangularity"
-        },
-        "delta_l": {
-          "value": 0.4,
-          "unit": "dimensionless",
-          "source": "Input",
-          "long_name": "Lower triangularity"
-        },
-        "phi_neg_u": { "value": 0, "unit": "degree", "source": "Input" },
-        "phi_pos_u": { "value": 0, "unit": "degree", "source": "Input" },
-        "phi_neg_l": { "value": 0, "unit": "degree", "source": "Input" },
-        "phi_pos_l": { "value": 0, "unit": "degree", "source": "Input" }
-      }
+      "run_mode": "read",
+      "surface_data": "$path_expand:../data/plasma/finite_plasma_surface_nurbs_data.json"
     }
   },
   "TF Coil": {
-    "params": {},
     "designer": {
-      "runmode": "run",
-      "param_class": "PrincetonD",
-      "var_dict": {
-        "x1": { "value": 3.0, "fixed": true },
-        "x2": { "value": 15, "lower_bound": 12 }
-      }
+      "run_mode": "read",
+      "coil_data": "$path_expand:../data/coils/finite_magnets_nurbs_data.json",
+      "surface_normals": "$path_expand:data/coils/normals_data.json"
     },
-    "builder": {
-      "params": {
-        "tf_wp_width": {
-          "value": 0.6,
-          "unit": "m",
-          "source": "Input",
-          "long_name": "Width of TF coil winding pack"
-        },
-        "tf_wp_depth": {
-          "value": 0.8,
-          "unit": "m",
-          "source": "Input",
-          "long_name": "Depth of TF coil winding pack"
-        }
-      }
-    }
+    "builder": {}
   }
 }
