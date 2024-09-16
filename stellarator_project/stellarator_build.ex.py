@@ -20,9 +20,7 @@
 #
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-"""
-A stellarator build example.
-"""
+"""A stellarator build example."""
 
 # %% [markdown]
 # # Geometry Tutorial
@@ -50,22 +48,20 @@ import os
 import sys
 from typing import Any, List
 
-sys.path.append(os.path.abspath("../bluemira"))
+# Basic objects
+import Part
 
-
+# sys.path.append(os.path.abspath("../bluemira"))
 # Some display functionality
 from bluemira.codes import _freecadapi as cadapi
 from bluemira.display import show_cad
 
-# Basic objects
-import Part
-
 # Some useful tools
 from bluemira.geometry.tools import (
-    make_bsplinesurface,
-    save_cad,
     loft_shape,
     make_bspline,
+    make_bsplinesurface,
+    save_cad,
 )
 from bluemira.geometry.wire import BluemiraWire
 
@@ -111,7 +107,7 @@ class PartWrapper:
 
 
 def create_coil_from_nurbs(json_path: str) -> List[Any]:
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         coils_data = json.load(f)
 
     coil_curves = []
@@ -148,7 +144,11 @@ def create_coil_from_nurbs(json_path: str) -> List[Any]:
             loft = Part.makeLoft(filament_curves, True)
             print("L:", loft.Length, "A:", loft.Area, "V", loft.Volume)
             loft_wire = loft_shape(
-                filament_wires, solid=True, ruled=True, closed=True, label=coil_name
+                filament_wires,
+                solid=True,
+                ruled=True,
+                closed=True,
+                label=coil_name,
             )
             print(loft_wire)
             loft_part = PartWrapper(loft)
@@ -167,4 +167,9 @@ show_cad(coil_curves + [plasma_surface])
 save_cad(
     coil_curves + [plasma_surface],
     "plasmastellarator.stp",
+)
+save_cad(
+    coil_curves + [plasma_surface],
+    "plasmastellarator",
+    cad_format="freecad",
 )

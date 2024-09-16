@@ -1,42 +1,42 @@
 #!/usr/bin/env python
 
-"""
-Script to import and optimize the HELIAS 5b coil configuration using SIMSOPT.
-"""
+"""Script to import and optimize the HELIAS 5b coil configuration using SIMSOPT."""
 
-import os
 import json
-import numpy as np
+import os
+from itertools import starmap
+
 import h5py
+import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import minimize
 from simsopt.field import (
     BiotSavart,
-    Current,
-    coils_via_symmetries,
     Coil,
-    apply_symmetries_to_curves,
+    Current,
     apply_symmetries_to_currents,
+    apply_symmetries_to_curves,
+    coils_via_symmetries,
 )
 from simsopt.geo import (
-    SurfaceRZFourier,
+    CurveCurveDistance,
+    CurveLength,
+    CurveSurfaceDistance,
     CurveXYZFourier,
-    curves_to_vtk,
+    LpCurveCurvature,
+    MeanSquaredCurvature,
+    SurfaceRZFourier,
     create_equally_spaced_curves,
     create_multifilament_grid,
-    CurveLength,
-    CurveCurveDistance,
-    MeanSquaredCurvature,
-    LpCurveCurvature,
-    CurveSurfaceDistance,
+    curves_to_vtk,
     plot,
 )
+from simsopt.objectives import QuadraticPenalty, SquaredFlux, Weight
 from simsopt.solve import GPMO
 from simsopt.util import (
-    in_github_actions,
     bluemira_nurbs_utils,
+    in_github_actions,
 )
-from simsopt.objectives import Weight, SquaredFlux, QuadraticPenalty
 
 # Configuration parameters
 nphi = 64  # Number of points in the phi direction
@@ -68,9 +68,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 
 def load_coils_from_hdf5(filename):
-    """
-    Load coil Fourier coefficients from an HDF5 file.
-    """
+    """Load coil Fourier coefficients from an HDF5 file."""
     coils_data = []
     centers = []
     with h5py.File(filename, "r") as f:
@@ -97,9 +95,7 @@ def load_coils_from_hdf5(filename):
 
 
 def h5_to_fourier_file_format(h5_filename, output_filename):
-    """
-    Convert HDF5 file containing Fourier coefficients into a specified format for CurveXYZFourier.
-    """
+    """Convert HDF5 file containing Fourier coefficients into a specified format for CurveXYZFourier."""
     with h5py.File(h5_filename, "r") as f:
         coils_data = []
         max_order = 0
@@ -122,15 +118,15 @@ def h5_to_fourier_file_format(h5_filename, output_filename):
         num_coils = len(coils_data)
         full_data = np.zeros((max_order + 1, 6 * num_coils))
         for ic, fourier_coeffs in enumerate(coils_data):
-            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = fourier_coeffs
+            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = (
+                fourier_coeffs
+            )
 
         np.savetxt(output_filename, full_data, delimiter=",")
 
 
 def load_curves_from_data(coil_data, centers, order=None, ppp=20):
-    """
-    Load Fourier coefficients data into CurveXYZFourier objects.
-    """
+    """Load Fourier coefficients data into CurveXYZFourier objects."""
     assert coil_data.shape[2] == 6
     num_coils = coil_data.shape[0]
     coils = [CurveXYZFourier(order * ppp, order) for _ in range(num_coils)]
@@ -141,7 +137,7 @@ def load_curves_from_data(coil_data, centers, order=None, ppp=20):
         dofs[1][0] = center[1] + coil_data[ic, 0, 3]
         dofs[2][0] = center[2] + coil_data[ic, 0, 5]
 
-        for io in range(0, min(order, coil_data.shape[1] - 1)):
+        for io in range(min(order, coil_data.shape[1] - 1)):
             dofs[0][2 * io + 1] = coil_data[ic, io + 1, 0]
             dofs[0][2 * io + 2] = coil_data[ic, io + 1, 1]
             dofs[1][2 * io + 1] = coil_data[ic, io + 1, 2]
@@ -197,7 +193,7 @@ coil_filament_map = {}
 
 # Create the filaments and group them by coil name
 for i, base_curve in enumerate(base_curves):
-    coil_name = f"coil_{i+1}"
+    coil_name = f"coil_{i + 1}"
     filaments = create_multifilament_grid(
         base_curve,
         numfilaments_n,
@@ -210,8 +206,10 @@ for i, base_curve in enumerate(base_curves):
 base_curves_finite_build = sum(coil_filament_map.values(), [])
 base_currents_finite_build = sum([[c] * nfil for c in base_currents], [])
 curves_fb = apply_symmetries_to_curves(base_curves_finite_build, s.nfp, True)
-currents_fb = apply_symmetries_to_currents(base_currents_finite_build, s.nfp, True)
-coils_fb = [Coil(c, curr) for (c, curr) in zip(curves_fb, currents_fb)]
+currents_fb = apply_symmetries_to_currents(
+    base_currents_finite_build, s.nfp, True
+)
+coils_fb = list(starmap(Coil, zip(curves_fb, currents_fb)))
 bs = BiotSavart(coils_fb)
 bs.set_points(s.gamma().reshape((-1, 3)))
 
@@ -233,7 +231,10 @@ Jdist = CurveCurveDistance(curves, DIST_MIN)
 JF = (
     Jf
     + LENGTH_PEN
-    * sum(QuadraticPenalty(Jls[i], Jls[i].J(), "max") for i in range(len(base_curves)))
+    * sum(
+        QuadraticPenalty(Jls[i], Jls[i].J(), "max")
+        for i in range(len(base_curves))
+    )
     + DIST_PEN * Jdist
 )
 
@@ -247,7 +248,7 @@ def fun(dofs):
     jf = Jf.J()
     kap_string = ", ".join(f"{np.max(c.kappa()):.1f}" for c in base_curves)
     print(
-        f"J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf)/mean_AbsB:.3e}, CoilLengths=[{cl_string}], [{kap_string}], ||∇J||={np.linalg.norm(grad):.3e}"
+        f"J={J:.3e}, Jflux={jf:.3e}, sqrt(Jflux)/Mean(|B|)={np.sqrt(jf) / mean_AbsB:.3e}, CoilLengths=[{cl_string}], [{kap_string}], ||∇J||={np.linalg.norm(grad):.3e}"
     )
     return 1e-4 * J, 1e-4 * grad
 

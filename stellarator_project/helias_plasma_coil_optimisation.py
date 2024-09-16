@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
-"""
-Script to import and optimize the HELIAS 5b coil configuration using SIMSOPT.
-"""
+"""Script to import and optimize the HELIAS 5b coil configuration using SIMSOPT."""
 
-import os
 import json
-import numpy as np
+import os
+
 import h5py
+import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import minimize
 from simsopt.field import (
@@ -16,23 +15,23 @@ from simsopt.field import (
     coils_via_symmetries,
 )
 from simsopt.geo import (
-    SurfaceRZFourier,
-    CurveXYZFourier,
-    curves_to_vtk,
-    create_equally_spaced_curves,
-    CurveLength,
     CurveCurveDistance,
-    MeanSquaredCurvature,
-    LpCurveCurvature,
+    CurveLength,
     CurveSurfaceDistance,
+    CurveXYZFourier,
+    LpCurveCurvature,
+    MeanSquaredCurvature,
+    SurfaceRZFourier,
+    create_equally_spaced_curves,
+    curves_to_vtk,
     plot,
 )
+from simsopt.objectives import QuadraticPenalty, SquaredFlux, Weight
 from simsopt.solve import GPMO
 from simsopt.util import (
-    in_github_actions,
     bluemira_nurbs_utils,
+    in_github_actions,
 )
-from simsopt.objectives import Weight, SquaredFlux, QuadraticPenalty
 
 # Configuration parameters
 nphi = 64  # Number of points in the phi direction
@@ -64,9 +63,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 
 def load_coils_from_hdf5(filename):
-    """
-    Load coil Fourier coefficients from an HDF5 file.
-    """
+    """Load coil Fourier coefficients from an HDF5 file."""
     coils_data = []
     centers = []
     with h5py.File(filename, "r") as f:
@@ -93,9 +90,7 @@ def load_coils_from_hdf5(filename):
 
 
 def h5_to_fourier_file_format(h5_filename, output_filename):
-    """
-    Convert HDF5 file containing Fourier coefficients into a specified format for CurveXYZFourier.
-    """
+    """Convert HDF5 file containing Fourier coefficients into a specified format for CurveXYZFourier."""
     with h5py.File(h5_filename, "r") as f:
         coils_data = []
         max_order = 0
@@ -118,15 +113,15 @@ def h5_to_fourier_file_format(h5_filename, output_filename):
         num_coils = len(coils_data)
         full_data = np.zeros((max_order + 1, 6 * num_coils))
         for ic, fourier_coeffs in enumerate(coils_data):
-            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = fourier_coeffs
+            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = (
+                fourier_coeffs
+            )
 
         np.savetxt(output_filename, full_data, delimiter=",")
 
 
 def load_curves_from_data(coil_data, centers, order=None, ppp=20):
-    """
-    Load Fourier coefficients data into CurveXYZFourier objects.
-    """
+    """Load Fourier coefficients data into CurveXYZFourier objects."""
     assert coil_data.shape[2] == 6
     num_coils = coil_data.shape[0]
     coils = [CurveXYZFourier(order * ppp, order) for _ in range(num_coils)]
@@ -137,7 +132,7 @@ def load_curves_from_data(coil_data, centers, order=None, ppp=20):
         dofs[1][0] = center[1] + coil_data[ic, 0, 3]
         dofs[2][0] = center[2] + coil_data[ic, 0, 5]
 
-        for io in range(0, min(order, coil_data.shape[1] - 1)):
+        for io in range(min(order, coil_data.shape[1] - 1)):
             dofs[0][2 * io + 1] = coil_data[ic, io + 1, 0]
             dofs[0][2 * io + 2] = coil_data[ic, io + 1, 1]
             dofs[1][2 * io + 1] = coil_data[ic, io + 1, 2]
@@ -151,7 +146,9 @@ def load_curves_from_data(coil_data, centers, order=None, ppp=20):
 
 # Load coils from HDF5 file
 coils_data, centers, order = load_coils_from_hdf5(coil_filename)
-coils = load_curves_from_data(coil_data=coils_data, centers=centers, order=order)
+coils = load_curves_from_data(
+    coil_data=coils_data, centers=centers, order=order
+)
 
 # Initialize the boundary magnetic surface
 s = SurfaceRZFourier.from_wout(
@@ -196,15 +193,15 @@ JF = (
 
 
 def fun(dofs):
-    """
-    Wrapper function for the optimization.
-    """
+    """Wrapper function for the optimization."""
     JF.x = dofs
     J = JF.J()
     grad = JF.dJ()
     jf = Jf.J()
     BdotN = np.mean(
-        np.abs(np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2))
+        np.abs(
+            np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)
+        )
     )
     outstr = f"J={J:.1e}, Jf={jf:.1e}, ⟨B·n⟩={BdotN:.1e}"
     cl_string = ", ".join([f"{J.J():.1f}" for J in Jls])
@@ -281,7 +278,9 @@ bluemira_nurbs_utils.curves_to_nurbs(
     plot=False,
 )
 print(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma()))
-print(len(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma())))
+print(
+    len(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma()))
+)
 print(curves[1].gamma())
 
 

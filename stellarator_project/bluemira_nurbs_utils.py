@@ -1,9 +1,10 @@
-import numpy as np
 import json
-from geomdl import NURBS, helpers
 from dataclasses import dataclass
-from typing import List, Any
+from typing import Any, List
+
+import numpy as np
 import plotly.graph_objects as go
+from geomdl import NURBS, helpers
 from scipy.spatial import KDTree
 
 # Take a simsopt surface object, and converts it to a NURBS so that
@@ -94,7 +95,8 @@ def make_periodic_knot_vector(num_points: int, degree: int) -> np.ndarray:
 
 def extract_internal_knots(knot_vector: List[float], degree: int) -> np.ndarray:
     """Extract the internal knot vector from a given knot vector
-    (excludes boundary knots)."""
+    (excludes boundary knots).
+    """
     # The number of repeated boundary knots is equal to the degree + 1
     p = degree
     # Remove the first p+1 elements and the last p+1 elements
@@ -109,22 +111,27 @@ def reshape_weights(self) -> List[List[float]]:
     return self.weights.reshape(num_rows, num_cols).tolist()
 
 
-def extract_internal_multiplicities(knot_vector: List[float], degree: int) -> List[int]:
+def extract_internal_multiplicities(
+    knot_vector: List[float], degree: int
+) -> List[int]:
     """Extract the internal multiplicities from a given knot vector."""
     internal_knots = extract_internal_knots(knot_vector, degree)
 
     # Get the unique internal knots and their counts
-    unique_internal_knots, counts = np.unique(internal_knots, return_counts=True)
+    unique_internal_knots, counts = np.unique(
+        internal_knots, return_counts=True
+    )
 
     # Build the list of multiplicities in the same order as the internal knots
-    internal_multiplicities = [counts[i] for i in range(len(unique_internal_knots))]
+    internal_multiplicities = [
+        counts[i] for i in range(len(unique_internal_knots))
+    ]
 
     return internal_multiplicities
 
 
 def refine_multiplicities(mults: np.ndarray, degree: int) -> np.ndarray:
-    """
-    Strip the first and last (degree + 1) multiplicities but retain one instance
+    """Strip the first and last (degree + 1) multiplicities but retain one instance
     of the boundary values.
     """
     boundary_count = degree + 1
@@ -135,9 +142,11 @@ def refine_multiplicities(mults: np.ndarray, degree: int) -> np.ndarray:
         )
 
     # Retain one instance of the boundary values and the internal values
-    refined_mults = np.concatenate(
-        ([mults[0]], mults[boundary_count:-boundary_count], [mults[-1]])
-    )
+    refined_mults = np.concatenate((
+        [mults[0]],
+        mults[boundary_count:-boundary_count],
+        [mults[-1]],
+    ))
 
     return refined_mults
 
@@ -193,12 +202,16 @@ def extract_nurbs_data(surf: NURBS.Surface) -> NURBSData:
     degree_v = surf.degree_v
     knot_vector_u = surf.knotvector_u
     knot_vector_v = surf.knotvector_v
-    internal_knot_vector_u = np.concatenate(
-        ([0], extract_internal_knots(knot_vector_u, degree_u), [1])
-    ).tolist()
-    internal_knot_vector_v = np.concatenate(
-        ([0], extract_internal_knots(knot_vector_v, degree_v), [1])
-    ).tolist()
+    internal_knot_vector_u = np.concatenate((
+        [0],
+        extract_internal_knots(knot_vector_u, degree_u),
+        [1],
+    )).tolist()
+    internal_knot_vector_v = np.concatenate((
+        [0],
+        extract_internal_knots(knot_vector_v, degree_v),
+        [1],
+    )).tolist()
     # Initialize mult array
     mults_u = np.zeros(len(knot_vector_u))
     # Fill mult array for uknotvector
@@ -248,9 +261,11 @@ def extract_nurbs_curve_data(curve: NURBS.Curve) -> NURBSCurveData:
     weights = curve.weights
     degree = curve.degree
     knot_vector = curve.knotvector
-    internal_knot_vector = np.concatenate(
-        ([0], extract_internal_knots(knot_vector, degree), [1])
-    ).tolist()
+    internal_knot_vector = np.concatenate((
+        [0],
+        extract_internal_knots(knot_vector, degree),
+        [1],
+    )).tolist()
     mults = np.zeros(len(knot_vector))
     for i, knot in enumerate(knot_vector):
         mults[i] = helpers.find_multiplicity(knot, knot_vector)
@@ -296,7 +311,9 @@ def reshape_control_points(control_points, num_ctrlpts_u, num_ctrlpts_v):
     :rtype: np.ndarray
     """
     # Reshape the control points into a 2D array
-    control_points_2d = np.reshape(control_points, (num_ctrlpts_u, num_ctrlpts_v, 3))
+    control_points_2d = np.reshape(
+        control_points, (num_ctrlpts_u, num_ctrlpts_v, 3)
+    )
     return control_points_2d
 
 
@@ -330,8 +347,7 @@ def extract_points_from_simsopt_curve(simsopt_curve: Any) -> np.ndarray:
 
 
 def extract_normals(surface, curve_points):
-    """
-    Extract normal vectors from a surface at the closest points to the given curve points.
+    """Extract normal vectors from a surface at the closest points to the given curve points.
 
     Parameters:
     - surface: SurfaceRZFourier object representing the plasma surface.
@@ -386,7 +402,9 @@ def setup_nurbs_curve(points: np.ndarray, degree: int) -> NURBS.Curve:
     curve = NURBS.Curve()
     curve.degree = degree
     if points.shape[-1] == 3:
-        points = np.concatenate((points, np.ones((points.shape[0], 1))), axis=-1)
+        points = np.concatenate(
+            (points, np.ones((points.shape[0], 1))), axis=-1
+        )
     control_points = points.tolist()
     curve.set_ctrlpts(control_points)
     knot_vector = make_periodic_knot_vector(points.shape[0], degree)
@@ -416,7 +434,9 @@ def plot_nurbs_curve(curve: NURBS.Curve) -> None:
     fig.show()
 
 
-def curve_to_nurbs(simsopt_curve: Any, export_path: str, plot: bool = False) -> None:
+def curve_to_nurbs(
+    simsopt_curve: Any, export_path: str, plot: bool = False
+) -> None:
     """Convert a simsopt curve to a NURBS so that it can be used in FreeCAD."""
     points = extract_points_from_simsopt_curve(simsopt_curve)
     nurbs = setup_nurbs_curve(points=points, degree=3)
@@ -426,7 +446,9 @@ def curve_to_nurbs(simsopt_curve: Any, export_path: str, plot: bool = False) -> 
         plot_nurbs_curve(nurbs)
 
 
-def curves_to_nurbs(curves: List[Any], export_path: str, plot: bool = False) -> None:
+def curves_to_nurbs(
+    curves: List[Any], export_path: str, plot: bool = False
+) -> None:
     """Convert a list of simsopt curves to NURBS curves and export them as a single JSON file."""
     nurbs_curve_data_list = []
     for curve in curves:
@@ -471,7 +493,9 @@ def filament_curves_to_nurbs(
             nurbs = setup_nurbs_curve(points=points, degree=3)
             nurbs_curve_data = extract_nurbs_curve_data(nurbs)
 
-            coil_data[f"coil_{i + 1}"][f"filament_{j + 1}"] = nurbs_curve_data.__dict__
+            coil_data[f"coil_{i + 1}"][f"filament_{j + 1}"] = (
+                nurbs_curve_data.__dict__
+            )
 
             if plot:
                 plot_nurbs_curve(nurbs)

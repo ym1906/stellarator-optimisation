@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-present {{ copyright-holder }} <{{ copyright-holder-email }}>   # noqa: E501
+# SPDX-FileCopyrightText: 2024-present {{ copyright-holder }} <{{ copyright-holder-email }}>
 #
 # SPDX-License-Identifier: MIT
 
@@ -11,6 +11,7 @@ from typing import Union
 from bluemira.base.parameter_frame import EmptyFrame
 from bluemira.base.reactor import Reactor
 from bluemira.base.reactor_config import ReactorConfig
+
 from stellarator_project.plasma.builder import PlasmaBuilder
 from stellarator_project.plasma.desinger import PlasmaDesigner
 from stellarator_project.plasma.manager import Plasma
