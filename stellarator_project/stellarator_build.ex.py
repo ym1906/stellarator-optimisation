@@ -170,8 +170,3 @@ save_cad(
     [*coil_curves, plasma_surface],
     "plasmastellarator.stp",
 )
-save_cad(
-    [*coil_curves, plasma_surface],
-    "plasmastellarator",
-    cad_format="freecad",
-)

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""The reactor design example."""
+"""Stellarator Example."""
 
 # %%
 from pathlib import Path
