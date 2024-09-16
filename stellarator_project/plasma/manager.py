@@ -16,8 +16,5 @@ class Plasma(ComponentManager):
     def lcfs(self) -> BluemiraWire:
         """Get separatrix."""
         return (
-            self.component()
-            .get_component("xz")
-            .get_component("LCFS")
-            .shape.boundary[0]
+            self.component().get_component("xz").get_component("LCFS").shape.boundary[0]
         )

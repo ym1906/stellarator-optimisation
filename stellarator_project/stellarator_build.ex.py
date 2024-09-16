@@ -43,6 +43,8 @@
 # Let's start out by importing all the basic objects, and some typical tools
 
 # %%
+from __future__ import annotations
+
 import json
 import os
 import sys
@@ -106,7 +108,7 @@ class PartWrapper:
         self.shape = shape
 
 
-def create_coil_from_nurbs(json_path: str) -> List[Any]:
+def create_coil_from_nurbs(json_path: str) -> list[Any]:
     with open(json_path) as f:
         coils_data = json.load(f)
 
@@ -163,13 +165,13 @@ def create_coil_from_nurbs(json_path: str) -> List[Any]:
 coil_curves = create_coil_from_nurbs(coil_filename)
 # print(coil_curves)
 # Show the CAD of the plasma surface and coils.
-show_cad(coil_curves + [plasma_surface])
+show_cad([*coil_curves, plasma_surface])
 save_cad(
-    coil_curves + [plasma_surface],
+    [*coil_curves, plasma_surface],
     "plasmastellarator.stp",
 )
 save_cad(
-    coil_curves + [plasma_surface],
+    [*coil_curves, plasma_surface],
     "plasmastellarator",
     cad_format="freecad",
 )

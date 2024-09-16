@@ -67,7 +67,7 @@ def load_coils_from_hdf5(filename):
     coils_data = []
     centers = []
     with h5py.File(filename, "r") as f:
-        for coil_name in f.keys():
+        for coil_name in f:
             group = f[coil_name]
             centre = group["Centre"][:]
             cosine_xyz = group["Cosine_xyz"][:]
@@ -94,7 +94,7 @@ def h5_to_fourier_file_format(h5_filename, output_filename):
     with h5py.File(h5_filename, "r") as f:
         coils_data = []
         max_order = 0
-        for coil_name in f.keys():
+        for coil_name in f:
             group = f[coil_name]
             cosine_xyz = group["Cosine_xyz"][:]
             sine_xyz = group["Sine_xyz"][:]
@@ -113,9 +113,7 @@ def h5_to_fourier_file_format(h5_filename, output_filename):
         num_coils = len(coils_data)
         full_data = np.zeros((max_order + 1, 6 * num_coils))
         for ic, fourier_coeffs in enumerate(coils_data):
-            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = (
-                fourier_coeffs
-            )
+            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = fourier_coeffs
 
         np.savetxt(output_filename, full_data, delimiter=",")
 
@@ -146,9 +144,7 @@ def load_curves_from_data(coil_data, centers, order=None, ppp=20):
 
 # Load coils from HDF5 file
 coils_data, centers, order = load_coils_from_hdf5(coil_filename)
-coils = load_curves_from_data(
-    coil_data=coils_data, centers=centers, order=order
-)
+coils = load_curves_from_data(coil_data=coils_data, centers=centers, order=order)
 
 # Initialize the boundary magnetic surface
 s = SurfaceRZFourier.from_wout(
@@ -167,9 +163,7 @@ bs.set_points(s.gamma().reshape((-1, 3)))
 curves = [c.curve for c in coils]
 curves_to_vtk(curves, OUT_DIR + "curves_init")
 pointData = {
-    "B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[
-        :, :, None
-    ]
+    "B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[:, :, None]
 }
 s.to_vtk(OUT_DIR + "surf_init", extra_data=pointData)
 
@@ -199,9 +193,7 @@ def fun(dofs):
     grad = JF.dJ()
     jf = Jf.J()
     BdotN = np.mean(
-        np.abs(
-            np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)
-        )
+        np.abs(np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2))
     )
     outstr = f"J={J:.1e}, Jf={jf:.1e}, ⟨B·n⟩={BdotN:.1e}"
     cl_string = ", ".join([f"{J.J():.1f}" for J in Jls])
@@ -237,9 +229,7 @@ res = minimize(
 )
 curves_to_vtk(curves, OUT_DIR + "curves_opt_short")
 pointData = {
-    "B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[
-        :, :, None
-    ]
+    "B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[:, :, None]
 }
 s.to_vtk(OUT_DIR + "surf_opt_short", extra_data=pointData)
 
@@ -256,9 +246,7 @@ res = minimize(
 )
 curves_to_vtk(curves, OUT_DIR + "curves_opt_long")
 pointData = {
-    "B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[
-        :, :, None
-    ]
+    "B_N": np.sum(bs.B().reshape((nphi, ntheta, 3)) * s.unitnormal(), axis=2)[:, :, None]
 }
 s.to_vtk(OUT_DIR + "surf_opt_long", extra_data=pointData)
 
@@ -278,9 +266,7 @@ bluemira_nurbs_utils.curves_to_nurbs(
     plot=False,
 )
 print(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma()))
-print(
-    len(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma()))
-)
+print(len(bluemira_nurbs_utils.extract_normals(s, curve_points=curves[1].gamma())))
 print(curves[1].gamma())
 
 
@@ -305,7 +291,9 @@ def extract_curve_normals(surface, curves):
 all_normals_data = extract_curve_normals(s, curves)
 
 # Define the output path
-output_path = "/home/graeme/stellarator-project/stellarator_project/data/magnets/normals_data.json"
+output_path = (
+    "/home/graeme/stellarator-project/stellarator_project/data/magnets/normals_data.json"
+)
 
 # Save the data to a JSON file
 with open(output_path, "w") as json_file:
