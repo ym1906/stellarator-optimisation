@@ -32,15 +32,13 @@ class PlasmaDesigner(Designer[GeometryParameterisation]):
             nphi=self.build_config.get("nphi", 64),
             ntheta=self.build_config.get("ntheta", 64),
         )
-        surface_to_nurbs(
+        return surface_to_nurbs(
             simsopt_surface=s,
             export_path=self.build_config.get(
                 f"{'finite_' if self.build_config.get('finite') else ''}surface_data"
             ),
             plot=False,
-        )
-
-        raise NotImplementedError("Not implemented")
+        ), s
 
     def read(self):
-        return read_json(self.build_config["surface_data"])
+        return read_json(self.build_config["surface_data"]), None

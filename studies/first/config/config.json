@@ -16,7 +16,43 @@
       "run_mode": "read",
       "finite_coil_data": "$path_expand:../data/coils/finite_magnets_nurbs_data.json",
       "coil_data": "$path_expand:../data/coils/magnets_nurbs_data.json",
-      "surface_normals": "$path_expand:data/coils/normals_data.json"
+      "surface_normals": "$path_expand:../data/coils/normals_data.json",
+      "bs_opt": "$path_expand:../data/coils/boit_savart_opt.json",
+      "optimisation": {
+        "length_penalty": 1e-2,
+        "distance_penalty": 10,
+        "first": {
+          "options": {
+            "maxiter": 400,
+            "maxcorr": 400,
+            "gtol": 1e-20,
+            "ftol": 1e-20
+          },
+          "tol": 1e-20,
+          "algorithm": "L-BFGS-B"
+        },
+        "second": {
+          "options": {
+            "maxiter": 400,
+            "maxcorr": 300
+          },
+          "tol": 1e-15,
+          "algorithm": "L-BFGS-B"
+        }
+      },
+      "params": {
+        "R_0": { "value": 22.0, "unit": "m" },
+        "R_minor": { "value": 12.2, "unit": "m" },
+        "n_TF_types": { "value": 6, "unit": "" },
+        "fourier_modes_cart": { "value": 9, "unit": "" },
+        "fourier_modes_rot": { "value": 9, "unit": "" },
+        "base_current": { "value": 1.257, "unit": "MA" },
+        "fil_gap_n": { "value": 0.02, "unit": "m" },
+        "fil_gap_b": { "value": 0.04, "unit": "m" },
+        "n_fil_n": { "value": 2, "unit": "" },
+        "n_fil_b": { "value": 3, "unit": "" },
+        "min_coil_sep": { "value": 0.1, "unit": "m" }
+      }
     },
     "builder": {}
   }

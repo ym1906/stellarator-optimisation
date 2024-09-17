@@ -102,6 +102,7 @@ ignore = [
     "PD",      # Pandas
     "B019",    # using cache memory leaks
     "COM812",  # enforce trailing comma, disagrees with black/ruff format
+    "D107",
     "D200",    # docs stuff
     "D203",
     "D205",

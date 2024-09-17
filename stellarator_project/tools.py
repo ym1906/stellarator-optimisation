@@ -10,8 +10,11 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+import h5py
 import numpy as np
-import plotly.graph_objects as go
+from bluemira.base.look_and_feel import bluemira_print
+
+# import plotly.graph_objects as go
 from geomdl import NURBS, helpers
 from scipy.spatial import KDTree
 
@@ -23,6 +26,21 @@ def read_json(file_path: str) -> dict[str, Any]:
     """Read JSON data from a file."""
     with open(file_path) as f:
         return json.load(f)
+
+
+def taylor_test(fun, JF):
+    # Perform a Taylor test
+    print("Performing a Taylor test")
+    f = fun
+    dofs = JF.x
+    np.random.seed(1)
+    h = np.random.uniform(size=dofs.shape)
+    J0, dJ0 = f(dofs)
+    dJh = sum(dJ0 * h)
+    for eps in [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]:
+        J1, _ = f(dofs + eps * h)
+        J2, _ = f(dofs - eps * h)
+        bluemira_print(f"err {(J1 - J2) / (2 * eps) - dJh}")
 
 
 @dataclass
@@ -59,9 +77,7 @@ def write_nurbs_data_to_json(nurbs_data: NURBSData, file_path: str) -> None:
         json.dump(nurbs_data.__dict__, f)
 
 
-def write_nurbs_curve_data_to_json(
-    nurbs_curve_data: list[NURBSCurveData], file_path: str
-) -> None:
+def write_nurbs_curve_data_to_json(curves_data_dict: dict, file_path: str) -> None:
     """Write a list of NURBSCurveData to a JSON file."""
     with open(file_path, "w") as f:
         json.dump(curves_data_dict, f)
@@ -285,26 +301,26 @@ def extract_nurbs_curve_data(curve: NURBS.Curve) -> NURBSCurveData:
     )
 
 
-def plot_nurbs_surface(surf: NURBS.Surface) -> None:
-    """Plot the NURBS surface using Plotly."""
-    surf.evaluate()
-    evaluated_points = np.array(surf.evalpts)
-    fig = go.Figure(
-        data=[
-            go.Scatter3d(
-                x=evaluated_points[:, 0],
-                y=evaluated_points[:, 1],
-                z=evaluated_points[:, 2],
-                mode="markers",
-                marker={"size": 2, "color": "blue"},
-            )
-        ]
-    )
-    fig.update_layout(
-        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
-        title="NURBS Surface",
-    )
-    fig.show()
+# def plot_nurbs_surface(surf: NURBS.Surface) -> None:
+#     """Plot the NURBS surface using Plotly."""
+#     surf.evaluate()
+#     evaluated_points = np.array(surf.evalpts)
+#     fig = go.Figure(
+#         data=[
+#             go.Scatter3d(
+#                 x=evaluated_points[:, 0],
+#                 y=evaluated_points[:, 1],
+#                 z=evaluated_points[:, 2],
+#                 mode="markers",
+#                 marker={"size": 2, "color": "blue"},
+#             )
+#         ]
+#     )
+#     fig.update_layout(
+#         scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
+#         title="NURBS Surface",
+#     )
+#     fig.show()
 
 
 def reshape_control_points(control_points, num_ctrlpts_u, num_ctrlpts_v):
@@ -371,7 +387,13 @@ def extract_normals(surface, curve_points):
     return surface.unitnormal().reshape((-1, 3))[indices]
 
 
-def surface_to_nurbs(simsopt_surface: Any, export_path: str, plot: bool = False) -> None:
+def surface_to_nurbs(
+    simsopt_surface: Any,
+    export_path: str,
+    *,
+    return_data: bool = True,
+    plot: bool = False,
+):
     """Convert a simsopt surface to a NURBS so that it can be used in
     FreeCAD.
 
@@ -393,6 +415,9 @@ def surface_to_nurbs(simsopt_surface: Any, export_path: str, plot: bool = False)
     write_nurbs_data_to_json(nurbs_data, export_path)
     if plot:
         plot_nurbs_surface(nurbs)
+    if return_data:
+        return nurbs_data
+    return None
 
 
 def setup_nurbs_curve(points: np.ndarray, degree: int) -> NURBS.Curve:
@@ -458,8 +483,12 @@ def curves_to_nurbs(curves: list[Any], export_path: str, plot: bool = False) -> 
 
 
 def filament_curves_to_nurbs(
-    curves: list[Any], numfil: int, export_path: str, plot: bool = False
-) -> None:
+    curves: list[Any],
+    numfil: int,
+    export_path: str,
+    return_data: bool = True,
+    plot: bool = False,
+):
     """Convert a list of simsopt curves to NURBS curves and export them as coils
     in a JSON file.
     """
@@ -476,10 +505,10 @@ def filament_curves_to_nurbs(
     print(f"Total number of filaments per coil: {numfil}")
     print(f"Total number of curves provided: {total_curves}")
 
-    coils_data = []
+    coils_data = {}
 
     for i in range(num_coils):
-        coil_data = {f"coil_{i + 1}": {}}
+        coil = coils_data[f"coil_{i + 1}"] = {}
 
         print(f"Processing coil {i + 1}...")
 
@@ -491,15 +520,101 @@ def filament_curves_to_nurbs(
             nurbs = setup_nurbs_curve(points=points, degree=3)
             nurbs_curve_data = extract_nurbs_curve_data(nurbs)
 
-            coil_data[f"coil_{i + 1}"][f"filament_{j + 1}"] = nurbs_curve_data.__dict__
+            coil[f"filament_{j + 1}"] = nurbs_curve_data.__dict__
 
             if plot:
                 plot_nurbs_curve(nurbs)
 
-        coils_data.append(coil_data)
         print(f"Finished processing coil {i + 1}")
 
     with open(export_path, "w") as f:
         json.dump(coils_data, f, indent=4)
 
     print(f"Data successfully written to {export_path}")
+
+    if return_data:
+        return coils_data
+    return None
+
+
+def load_coils_from_hdf5(filename):
+    """Load coil Fourier coefficients from an HDF5 file."""
+    coils_data = []
+    centers = []
+    with h5py.File(filename, "r") as f:
+        for coil_name in f:
+            group = f[coil_name]
+            centre = group["Centre"][:]
+            cosine_xyz = group["Cosine_xyz"][:]
+            sine_xyz = group["Sine_xyz"][:]
+            order = cosine_xyz.shape[0] - 1
+
+            # Create Fourier coefficients array
+            fourier_coeffs = np.zeros((order + 1, 6))
+            fourier_coeffs[:, 0] = sine_xyz[:, 0]
+            fourier_coeffs[:, 1] = cosine_xyz[:, 0]
+            fourier_coeffs[:, 2] = sine_xyz[:, 1]
+            fourier_coeffs[:, 3] = cosine_xyz[:, 1]
+            fourier_coeffs[:, 4] = sine_xyz[:, 2]
+            fourier_coeffs[:, 5] = cosine_xyz[:, 2]
+
+            coils_data.append(fourier_coeffs)
+            centers.append(centre)
+
+    return np.array(coils_data), np.array(centers), order
+
+
+def h5_to_fourier_file_format(h5_filename, output_filename):
+    """Convert HDF5 file containing Fourier coefficients into a specified
+    format for CurveXYZFourier.
+    """
+    with h5py.File(h5_filename, "r") as f:
+        coils_data = []
+        max_order = 0
+        for coil_name in f:
+            group = f[coil_name]
+            cosine_xyz = group["Cosine_xyz"][:]
+            sine_xyz = group["Sine_xyz"][:]
+            order = cosine_xyz.shape[0] - 1
+            max_order = max(max_order, order)
+
+            fourier_coeffs = np.zeros((order + 1, 6))
+            fourier_coeffs[:, 0] = sine_xyz[:, 0]
+            fourier_coeffs[:, 1] = cosine_xyz[:, 0]
+            fourier_coeffs[:, 2] = sine_xyz[:, 1]
+            fourier_coeffs[:, 3] = cosine_xyz[:, 1]
+            fourier_coeffs[:, 4] = sine_xyz[:, 2]
+            fourier_coeffs[:, 5] = cosine_xyz[:, 2]
+            coils_data.append(fourier_coeffs)
+
+        num_coils = len(coils_data)
+        full_data = np.zeros((max_order + 1, 6 * num_coils))
+        for ic, fourier_coeffs in enumerate(coils_data):
+            full_data[: fourier_coeffs.shape[0], 6 * ic : 6 * (ic + 1)] = fourier_coeffs
+
+        np.savetxt(output_filename, full_data, delimiter=",")
+
+
+def load_curves_from_data(coil_data, centers, order=None, ppp=20):
+    """Load Fourier coefficients data into CurveXYZFourier objects."""
+    if coil_data.shape[2] == 6:
+        raise ValueError("Coil data shape is not handled")
+    num_coils = coil_data.shape[0]
+    coils = [CurveXYZFourier(order * ppp, order) for _ in range(num_coils)]
+    for ic in range(num_coils):
+        dofs = coils[ic].dofs_matrix
+        center = centers[ic]
+        dofs[0][0] = center[0] + coil_data[ic, 0, 1]
+        dofs[1][0] = center[1] + coil_data[ic, 0, 3]
+        dofs[2][0] = center[2] + coil_data[ic, 0, 5]
+
+        for io in range(min(order, coil_data.shape[1] - 1)):
+            dofs[0][2 * io + 1] = coil_data[ic, io + 1, 0]
+            dofs[0][2 * io + 2] = coil_data[ic, io + 1, 1]
+            dofs[1][2 * io + 1] = coil_data[ic, io + 1, 2]
+            dofs[1][2 * io + 2] = coil_data[ic, io + 1, 3]
+            dofs[2][2 * io + 1] = coil_data[ic, io + 1, 4]
+            dofs[2][2 * io + 2] = coil_data[ic, io + 1, 5]
+
+        coils[ic].local_x = np.concatenate(dofs)
+    return coils
