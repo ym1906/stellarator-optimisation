@@ -1,8 +1,14 @@
+# SPDX-FileCopyrightText: 2024-present {{ copyright-holder }} <{{ copyright-holder-email }}>
+#
+# SPDX-License-Identifier: MIT
+
+"""Useful tools"""
+
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 import plotly.graph_objects as go
@@ -13,7 +19,12 @@ from scipy.spatial import KDTree
 # it is compatible with FreeCAD, which is used in Bluemira.
 
 
-# A dataclass to hold the NURBS data.
+def read_json(file_path: str) -> dict[str, Any]:
+    """Read JSON data from a file."""
+    with open(file_path) as f:
+        return json.load(f)
+
+
 @dataclass
 class NURBSData:
     poles: list[list[float]]
@@ -52,7 +63,6 @@ def write_nurbs_curve_data_to_json(
     nurbs_curve_data: list[NURBSCurveData], file_path: str
 ) -> None:
     """Write a list of NURBSCurveData to a JSON file."""
-    curves_data_dict = [curve.__dict__ for curve in nurbs_curve_data]
     with open(file_path, "w") as f:
         json.dump(curves_data_dict, f)
 
@@ -425,7 +435,7 @@ def curve_to_nurbs(simsopt_curve: Any, export_path: str, plot: bool = False) -> 
     points = extract_points_from_simsopt_curve(simsopt_curve)
     nurbs = setup_nurbs_curve(points=points, degree=3)
     nurbs_curve_data = extract_nurbs_curve_data(nurbs)
-    write_nurbs_curve_data_to_json([nurbs_curve_data], export_path)
+    write_nurbs_curve_data_to_json(nurbs_curve_data.__dict__, export_path)
     if plot:
         plot_nurbs_curve(nurbs)
 
@@ -434,15 +444,17 @@ def curves_to_nurbs(curves: list[Any], export_path: str, plot: bool = False) -> 
     """Convert a list of simsopt curves to NURBS curves and export them as a
     single JSON file.
     """
-    nurbs_curve_data_list = []
+    nurbs_curve_data = {}
     for curve in curves:
         points = extract_points_from_simsopt_curve(curve)
         nurbs = setup_nurbs_curve(points=points, degree=3)
-        nurbs_curve_data = extract_nurbs_curve_data(nurbs)
-        nurbs_curve_data_list.append(nurbs_curve_data)
+        nurbs_curve_data = {
+            **nurbs_curve_data,
+            **extract_nurbs_curve_data(nurbs).__dict__,
+        }
         if plot:
             plot_nurbs_curve(nurbs)
-    write_nurbs_curve_data_to_json(nurbs_curve_data_list, export_path)
+    write_nurbs_curve_data_to_json(nurbs_curve_data, export_path)
 
 
 def filament_curves_to_nurbs(

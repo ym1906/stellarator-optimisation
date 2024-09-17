@@ -19,7 +19,7 @@ classifiers = [
   # "Programming Language :: Python :: 3.10",
 ]
 
-dependencies = ["numpy", "matplotlib"]
+dependencies = ["bluemira", "numpy", "matplotlib"]
 
 [project.optional-dependencies]
 dev = ["pre-commit"]
@@ -83,6 +83,7 @@ version-file = "stellarator_project/_version.py"
 [tool.ruff]
 line-length = 89
 preview = true
+output-format = "concise"
 
 [tool.ruff.lint]
 exclude = [
