@@ -56,7 +56,9 @@ class TFCoilBuilder(Builder):
             coils.append(coil)
         return coils
 
-    def create_coil_from_nurbs(self, name, filaments):
+    @staticmethod
+    def create_coil_from_nurbs(name, filaments):
+        """Create coil from nurb filaments."""
         filament_wires = [
             make_bspline(
                 poles=curve_dict["poles"],
@@ -87,6 +89,7 @@ class TFCoilBuilder(Builder):
             "V",
             coil.shape.Volume,
         )
-        # There is something not right about the volume, I am not using makeloft correctly..
+        # There is something not right about the volume,
+        # I am not using makeloft correctly..
         # The volume is negative...and anyway we need to add filament thickness.
         return coil

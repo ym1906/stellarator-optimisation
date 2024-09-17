@@ -34,11 +34,10 @@ class PlasmaDesigner(Designer[GeometryParameterisation]):
         )
         return surface_to_nurbs(
             simsopt_surface=s,
-            export_path=self.build_config.get(
-                f"{'finite_' if self.build_config.get('finite') else ''}surface_data"
-            ),
+            export_path=self.build_config.get("surface_data"),
             plot=False,
         ), s
 
     def read(self):
+        """Read surface data from json."""
         return read_json(self.build_config["surface_data"]), None

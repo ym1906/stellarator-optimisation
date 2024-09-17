@@ -29,7 +29,7 @@ class PlasmaBuilder(Builder):
         )
 
     def build_xyz(self) -> PhysicalComponent:
-        """Build the plasma"""
+        """Build the plasma."""
         # Create a plasma surface from NURBS surface data
         plasma_surface = make_bsplinesurface(
             poles=self.s_data.poles2d,

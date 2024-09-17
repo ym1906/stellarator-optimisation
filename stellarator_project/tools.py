@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Useful tools"""
+"""Useful tools."""
 
 from __future__ import annotations
 
@@ -12,14 +12,12 @@ from typing import Any
 
 import h5py
 import numpy as np
-from bluemira.base.look_and_feel import bluemira_print
-
-# import plotly.graph_objects as go
+from bluemira.base.look_and_feel import bluemira_print, bluemira_print_flush
 from geomdl import NURBS, helpers
 from scipy.spatial import KDTree
+from simsopt.geo import CurveXYZFourier
 
-# Take a simsopt surface object, and converts it to a NURBS so that
-# it is compatible with FreeCAD, which is used in Bluemira.
+# import plotly.graph_objects as go
 
 
 def read_json(file_path: str) -> dict[str, Any]:
@@ -30,11 +28,11 @@ def read_json(file_path: str) -> dict[str, Any]:
 
 def taylor_test(fun, JF):
     # Perform a Taylor test
-    print("Performing a Taylor test")
+    bluemira_print("Performing a Taylor test")
     f = fun
     dofs = JF.x
-    np.random.seed(1)
-    h = np.random.uniform(size=dofs.shape)
+    rng = np.random.default_rng(1)
+    h = rng.uniform(size=dofs.shape)
     J0, dJ0 = f(dofs)
     dJh = sum(dJ0 * h)
     for eps in [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]:
@@ -60,6 +58,81 @@ class NURBSData:
     mults_u: list[int]
     mults_v: list[int]
 
+    @classmethod
+    def from_surface(cls, surf: NURBS.Surface) -> NURBSData:
+        """Extract NURBS data from a geomdl NURBS surface."""
+        control_points = surf.ctrlpts
+        control_points_size_u = surf.ctrlpts_size_u
+        control_points_size_v = surf.ctrlpts_size_v
+        control_points_2d = reshape_control_points(
+            control_points, control_points_size_u, control_points_size_v
+        )
+        # poles = [pt[:3] for row in control_points for pt in row]  # Extract x, y, z
+        poles = control_points
+        poles2d = control_points_2d.tolist()
+        weights = surf.weights
+        degree_u = surf.degree_u
+        degree_v = surf.degree_v
+        knot_vector_u = surf.knotvector_u
+        knot_vector_v = surf.knotvector_v
+        internal_knot_vector_u = np.concatenate((
+            [0],
+            extract_internal_knots(knot_vector_u, degree_u),
+            [1],
+        )).tolist()
+        internal_knot_vector_v = np.concatenate((
+            [0],
+            extract_internal_knots(knot_vector_v, degree_v),
+            [1],
+        )).tolist()
+        # Initialize mult array
+        mults_u = np.zeros(len(knot_vector_u))
+        # Fill mult array for uknotvector
+        for i, knot in enumerate(knot_vector_u):
+            mults_u[i] = helpers.find_multiplicity(knot, knot_vector_u)
+        # I am not exactly sure why but it is necessary
+        # to remove some of the boundary multiplicities,
+        # this is requried by the bsplinesurface freecad (bluemira).
+        mults_u = refine_multiplicities(mults_u, degree_u)
+
+        # Initialize mult array
+        mults_v = np.zeros(len(knot_vector_v))
+        # Fill mult array for vknotvector
+        for i, knot in enumerate(knot_vector_v):
+            mults_v[i] = helpers.find_multiplicity(knot, knot_vector_v)
+        mults_v = refine_multiplicities(mults_v, degree_v)
+        # Convert NumPy arrays to Python lists
+        mults_u = mults_u.tolist()
+        mults_v = mults_v.tolist()
+        # Ensures that the weights are correctly formatted and aligned with
+        # the control points grid layout
+        weights_reshaped = np.array(weights)
+        weights_reshaped = weights_reshaped.reshape(
+            control_points_size_u, control_points_size_v
+        ).tolist()
+
+        return cls(
+            poles,
+            poles2d,
+            control_points_size_u,
+            control_points_size_v,
+            knot_vector_u,
+            knot_vector_v,
+            internal_knot_vector_u,
+            internal_knot_vector_v,
+            degree_u,
+            degree_v,
+            weights,
+            weights_reshaped,
+            mults_u,
+            mults_v,
+        )
+
+    def write_to_json(self, file_path):
+        """Write NURBSData to a JSON file."""
+        with open(file_path, "w") as f:
+            json.dump(self.__dict__, f)
+
 
 @dataclass
 class NURBSCurveData:
@@ -70,17 +143,30 @@ class NURBSCurveData:
     weights: list[float]
     mults: list[int]
 
+    @classmethod
+    def from_curve(cls, curve: NURBS.Curve) -> NURBSCurveData:
+        """Extract NURBS curve data from a geomdl NURBS curve."""
+        control_points = curve.ctrlpts
+        poles = control_points
+        weights = curve.weights
+        degree = curve.degree
+        knot_vector = curve.knotvector
+        internal_knot_vector = np.concatenate((
+            [0],
+            extract_internal_knots(knot_vector, degree),
+            [1],
+        )).tolist()
+        mults = np.zeros(len(knot_vector))
+        for i, knot in enumerate(knot_vector):
+            mults[i] = helpers.find_multiplicity(knot, knot_vector)
+        mults = refine_multiplicities(mults, degree).tolist()
 
-def write_nurbs_data_to_json(nurbs_data: NURBSData, file_path: str) -> None:
-    """Write NURBSData to a JSON file."""
-    with open(file_path, "w") as f:
-        json.dump(nurbs_data.__dict__, f)
+        return cls(poles, degree, knot_vector, internal_knot_vector, weights, mults)
 
-
-def write_nurbs_curve_data_to_json(curves_data_dict: dict, file_path: str) -> None:
-    """Write a list of NURBSCurveData to a JSON file."""
-    with open(file_path, "w") as f:
-        json.dump(curves_data_dict, f)
+    def write_to_json(self, file_path: str):
+        """Write a list of NURBSCurveData to a JSON file."""
+        with open(file_path, "w") as f:
+            json.dump(self, f)
 
 
 def generate_knot_vector(num_points: int, degree: int) -> np.ndarray:
@@ -204,125 +290,6 @@ def setup_nurbs_surface(
     return surface
 
 
-def extract_nurbs_data(surf: NURBS.Surface) -> NURBSData:
-    """Extract NURBS data from a geomdl NURBS surface."""
-    control_points = surf.ctrlpts
-    control_points_size_u = surf.ctrlpts_size_u
-    control_points_size_v = surf.ctrlpts_size_v
-    control_points_2d = reshape_control_points(
-        control_points, control_points_size_u, control_points_size_v
-    )
-    # poles = [pt[:3] for row in control_points for pt in row]  # Extract x, y, z
-    poles = control_points
-    poles2d = control_points_2d.tolist()
-    weights = surf.weights
-    degree_u = surf.degree_u
-    degree_v = surf.degree_v
-    knot_vector_u = surf.knotvector_u
-    knot_vector_v = surf.knotvector_v
-    internal_knot_vector_u = np.concatenate((
-        [0],
-        extract_internal_knots(knot_vector_u, degree_u),
-        [1],
-    )).tolist()
-    internal_knot_vector_v = np.concatenate((
-        [0],
-        extract_internal_knots(knot_vector_v, degree_v),
-        [1],
-    )).tolist()
-    # Initialize mult array
-    mults_u = np.zeros(len(knot_vector_u))
-    # Fill mult array for uknotvector
-    for i, knot in enumerate(knot_vector_u):
-        mults_u[i] = helpers.find_multiplicity(knot, knot_vector_u)
-    # I am not exactly sure why but it is necessary
-    # to remove some of the boundary multiplicities,
-    # this is requried by the bsplinesurface freecad (bluemira).
-    mults_u = refine_multiplicities(mults_u, degree_u)
-
-    # Initialize mult array
-    mults_v = np.zeros(len(knot_vector_v))
-    # Fill mult array for vknotvector
-    for i, knot in enumerate(knot_vector_v):
-        mults_v[i] = helpers.find_multiplicity(knot, knot_vector_v)
-    mults_v = refine_multiplicities(mults_v, degree_v)
-    # Convert NumPy arrays to Python lists
-    mults_u = mults_u.tolist()
-    mults_v = mults_v.tolist()
-    # Ensures that the weights are correctly formatted and aligned with
-    # the control points grid layout
-    weights_reshaped = np.array(weights)
-    weights_reshaped = weights_reshaped.reshape(
-        control_points_size_u, control_points_size_v
-    ).tolist()
-
-    return NURBSData(
-        poles,
-        poles2d,
-        control_points_size_u,
-        control_points_size_v,
-        knot_vector_u,
-        knot_vector_v,
-        internal_knot_vector_u,
-        internal_knot_vector_v,
-        degree_u,
-        degree_v,
-        weights,
-        weights_reshaped,
-        mults_u,
-        mults_v,
-    )
-
-
-def extract_nurbs_curve_data(curve: NURBS.Curve) -> NURBSCurveData:
-    """Extract NURBS curve data from a geomdl NURBS curve."""
-    control_points = curve.ctrlpts
-    poles = control_points
-    weights = curve.weights
-    degree = curve.degree
-    knot_vector = curve.knotvector
-    internal_knot_vector = np.concatenate((
-        [0],
-        extract_internal_knots(knot_vector, degree),
-        [1],
-    )).tolist()
-    mults = np.zeros(len(knot_vector))
-    for i, knot in enumerate(knot_vector):
-        mults[i] = helpers.find_multiplicity(knot, knot_vector)
-    mults = refine_multiplicities(mults, degree).tolist()
-
-    return NURBSCurveData(
-        poles,
-        degree,
-        knot_vector,
-        internal_knot_vector,
-        weights,
-        mults,
-    )
-
-
-# def plot_nurbs_surface(surf: NURBS.Surface) -> None:
-#     """Plot the NURBS surface using Plotly."""
-#     surf.evaluate()
-#     evaluated_points = np.array(surf.evalpts)
-#     fig = go.Figure(
-#         data=[
-#             go.Scatter3d(
-#                 x=evaluated_points[:, 0],
-#                 y=evaluated_points[:, 1],
-#                 z=evaluated_points[:, 2],
-#                 mode="markers",
-#                 marker={"size": 2, "color": "blue"},
-#             )
-#         ]
-#     )
-#     fig.update_layout(
-#         scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
-#         title="NURBS Surface",
-#     )
-#     fig.show()
-
-
 def reshape_control_points(control_points, num_ctrlpts_u, num_ctrlpts_v):
     """Reshape the control points of the NURBS surface.
     :param nurbs_data: NURBSData object containing the control points
@@ -411,8 +378,8 @@ def surface_to_nurbs(
     nurbs = setup_nurbs_surface(
         points=points, degree_u=3, degree_v=3, n_phi=n_phi, n_theta=n_theta
     )
-    nurbs_data = extract_nurbs_data(nurbs)
-    write_nurbs_data_to_json(nurbs_data, export_path)
+    nurbs_data = NURBSData.from_surface(nurbs)
+    nurbs_data.write_to_json(export_path)
     if plot:
         plot_nurbs_surface(nurbs)
     if return_data:
@@ -433,66 +400,27 @@ def setup_nurbs_curve(points: np.ndarray, degree: int) -> NURBS.Curve:
     return curve
 
 
-def plot_nurbs_curve(curve: NURBS.Curve) -> None:
-    """Plot the NURBS curve using Plotly."""
-    curve.evaluate()
-    evaluated_points = np.array(curve.evalpts)
-    fig = go.Figure(
-        data=[
-            go.Scatter3d(
-                x=evaluated_points[:, 0],
-                y=evaluated_points[:, 1],
-                z=evaluated_points[:, 2],
-                mode="markers",
-                marker={"size": 2, "color": "red"},
-            )
-        ]
-    )
-    fig.update_layout(
-        scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
-        title="NURBS Curve",
-    )
-    fig.show()
-
-
-def curve_to_nurbs(simsopt_curve: Any, export_path: str, plot: bool = False) -> None:
+def curve_to_nurbs(simsopt_curve: Any, export_path: str, *, plot: bool = False) -> None:
     """Convert a simsopt curve to a NURBS so that it can be used in FreeCAD."""
     points = extract_points_from_simsopt_curve(simsopt_curve)
     nurbs = setup_nurbs_curve(points=points, degree=3)
-    nurbs_curve_data = extract_nurbs_curve_data(nurbs)
-    write_nurbs_curve_data_to_json(nurbs_curve_data.__dict__, export_path)
+    nurbs_curve_data = NURBSCurveData.from_curve(nurbs)
+    nurbs_curve_data.write_to_json(export_path)
     if plot:
         plot_nurbs_curve(nurbs)
-
-
-def curves_to_nurbs(curves: list[Any], export_path: str, plot: bool = False) -> None:
-    """Convert a list of simsopt curves to NURBS curves and export them as a
-    single JSON file.
-    """
-    nurbs_curve_data = {}
-    for curve in curves:
-        points = extract_points_from_simsopt_curve(curve)
-        nurbs = setup_nurbs_curve(points=points, degree=3)
-        nurbs_curve_data = {
-            **nurbs_curve_data,
-            **extract_nurbs_curve_data(nurbs).__dict__,
-        }
-        if plot:
-            plot_nurbs_curve(nurbs)
-    write_nurbs_curve_data_to_json(nurbs_curve_data, export_path)
 
 
 def filament_curves_to_nurbs(
     curves: list[Any],
     numfil: int,
     export_path: str,
+    *,
     return_data: bool = True,
     plot: bool = False,
 ):
     """Convert a list of simsopt curves to NURBS curves and export them as coils
     in a JSON file.
     """
-    print(curves)
     total_curves = len(curves)
     if total_curves % numfil != 0:
         raise ValueError(
@@ -501,16 +429,18 @@ def filament_curves_to_nurbs(
 
     num_coils = total_curves // numfil
 
-    print(f"Total number of coils to process: {num_coils}")
-    print(f"Total number of filaments per coil: {numfil}")
-    print(f"Total number of curves provided: {total_curves}")
+    bluemira_print(
+        f"Total number of coils to process: {num_coils}\n"
+        f"Total number of filaments per coil: {numfil}\n"
+        f"Total number of curves provided: {total_curves}"
+    )
 
     coils_data = {}
 
     for i in range(num_coils):
         coil = coils_data[f"coil_{i + 1}"] = {}
 
-        print(f"Processing coil {i + 1}...")
+        bluemira_print_flush(f"Processing coil {i + 1}...")
 
         for j in range(numfil):
             index = i * numfil + j
@@ -518,19 +448,17 @@ def filament_curves_to_nurbs(
 
             points = extract_points_from_simsopt_curve(curves[index])
             nurbs = setup_nurbs_curve(points=points, degree=3)
-            nurbs_curve_data = extract_nurbs_curve_data(nurbs)
+            nurbs_curve_data = NURBSCurveData.from_curve(nurbs)
 
             coil[f"filament_{j + 1}"] = nurbs_curve_data.__dict__
 
             if plot:
                 plot_nurbs_curve(nurbs)
 
-        print(f"Finished processing coil {i + 1}")
-
     with open(export_path, "w") as f:
         json.dump(coils_data, f, indent=4)
 
-    print(f"Data successfully written to {export_path}")
+    bluemira_print(f"Data successfully written to {export_path}")
 
     if return_data:
         return coils_data
@@ -618,3 +546,46 @@ def load_curves_from_data(coil_data, centers, order=None, ppp=20):
 
         coils[ic].local_x = np.concatenate(dofs)
     return coils
+
+
+# def plot_nurbs_surface(surf: NURBS.Surface) -> None:
+#     """Plot the NURBS surface using Plotly."""
+#     surf.evaluate()
+#     evaluated_points = np.array(surf.evalpts)
+#     fig = go.Figure(
+#         data=[
+#             go.Scatter3d(
+#                 x=evaluated_points[:, 0],
+#                 y=evaluated_points[:, 1],
+#                 z=evaluated_points[:, 2],
+#                 mode="markers",
+#                 marker={"size": 2, "color": "blue"},
+#             )
+#         ]
+#     )
+#     fig.update_layout(
+#         scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
+#         title="NURBS Surface",
+#     )
+#     fig.show()
+
+# def plot_nurbs_curve(curve: NURBS.Curve) -> None:
+#     """Plot the NURBS curve using Plotly."""
+#     curve.evaluate()
+#     evaluated_points = np.array(curve.evalpts)
+#     fig = go.Figure(
+#         data=[
+#             go.Scatter3d(
+#                 x=evaluated_points[:, 0],
+#                 y=evaluated_points[:, 1],
+#                 z=evaluated_points[:, 2],
+#                 mode="markers",
+#                 marker={"size": 2, "color": "red"},
+#             )
+#         ]
+#     )
+#     fig.update_layout(
+#         scene={"xaxis_title": "X", "yaxis_title": "Y", "zaxis_title": "Z"},
+#         title="NURBS Curve",
+#     )
+#     fig.show()

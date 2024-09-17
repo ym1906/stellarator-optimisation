@@ -5,9 +5,9 @@ build-backend = "hatchling.build"
 [project]
 name = "stellarator-project"
 dynamic = ["version"]
-description = 'A template for Bluemira projects.'
+description = 'Stellarator concept design'
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 keywords = []
 authors = [
@@ -15,11 +15,10 @@ authors = [
 ]
 classifiers = [
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3.8",
-  # "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.10",
 ]
 
-dependencies = ["bluemira", "numpy", "matplotlib"]
+dependencies = ["bluemira", "numpy", "matplotlib", "simsopt", "geomdl", "scipy"]
 
 [project.optional-dependencies]
 dev = ["pre-commit"]
@@ -42,25 +41,6 @@ Source = "https://github.com/{{ org-name }}/stellarator-project"
 source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "stellarator_project/_version.py"
-
-# env: default
-# [tool.hatch.envs.default]
-# type = "conda"
-# command = "conda"
-# python = "3.8"
-# environment-file = "bluemira/conda/environment.yml"
-# features = ["dev", "test", "docs", "lint"]
-
-# env: test
-# [tool.hatch.envs.test]
-# features = ["test"]
-# [[tool.hatch.envs.test.matrix]]
-# python = ["3.8", "3.10"]
-# [tool.hatch.envs.test.scripts]
-# tests = "pytest {args:tests}"
-# tests-cov = "coverage run -m pytest {args:tests}"
-# cov-report = ["- coverage combine", "coverage report"]
-# cov-all = ["tests-cov", "cov-report"]
 
 # env: docs
 # [tool.hatch.envs.docs]

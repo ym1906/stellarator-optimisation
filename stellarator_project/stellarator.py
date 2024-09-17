@@ -21,7 +21,7 @@ from stellarator_project.tf_coil.designer import TFCoilDesigner
 from stellarator_project.tf_coil.manager import TFCoil
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from bluemira.base.builder import BuildConfig
 
 
 class MyReactor(Reactor):
@@ -31,7 +31,8 @@ class MyReactor(Reactor):
     tf_coil: TFCoil
 
 
-def build_plasma(reactor_config):
+def build_plasma(reactor_config: ReactorConfig):
+    """Create plasma."""
     plasma_designer = PlasmaDesigner(
         reactor_config.params_for("Plasma", "designer"),
         reactor_config.config_for("Plasma", "designer"),
@@ -42,10 +43,11 @@ def build_plasma(reactor_config):
         plasma_parameterisation,
         reactor_config.config_for("Plasma"),
     )
-    return Plasma(plasma_builder.build()), s
+    return Plasma(plasma_builder.build(), surface=s)
 
 
-def build_tf(reactor_config, s):
+def build_tf(reactor_config: ReactorConfig, s):
+    """Create coils."""
     tf_coil_designer = TFCoilDesigner(
         reactor_config.params_for("TF Coil", "designer"),
         reactor_config.config_for("TF Coil", "designer"),
@@ -60,13 +62,13 @@ def build_tf(reactor_config, s):
     return TFCoil(tf_coil_builder.build())
 
 
-def main(build_config: str | Path | dict) -> MyReactor:
+def main(build_config: BuildConfig) -> MyReactor:
     """Main reactor function."""
     reactor_config = ReactorConfig(build_config, EmptyFrame)
 
     reactor = MyReactor("Simple Example", n_sectors=1)
 
-    reactor.plasma, s = build_plasma(reactor_config)
-    reactor.tf_coil = build_tf(reactor_config, s)
+    reactor.plasma = build_plasma(reactor_config)
+    reactor.tf_coil = build_tf(reactor_config, reactor.plasma.surface)
 
     return reactor

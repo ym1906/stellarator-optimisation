@@ -1,11 +1,9 @@
 {
   "params": {},
-  "finite": true,
   "Plasma": {
     "designer": {
-      "run_mode": "read",
-      "finite_surface_data": "$path_expand:../data/plasma/finite_plasma_surface_nurbs_data.json",
-      "surface_data": "$path_expand:../data/plasma/plasma_surface_nurbs_data.json",
+      "run_mode": "run",
+      "surface_data": "$path_expand:../data/plasma/finite_plasma_surface_nurbs_data.json",
       "nphi": 64,
       "ntheta": 64,
       "input_nc3": "$path_expand:../data/plasma/helias5_vmec.nc3"
@@ -13,9 +11,8 @@
   },
   "TF Coil": {
     "designer": {
-      "run_mode": "read",
-      "finite_coil_data": "$path_expand:../data/coils/finite_magnets_nurbs_data.json",
-      "coil_data": "$path_expand:../data/coils/magnets_nurbs_data.json",
+      "run_mode": "run",
+      "coil_data": "$path_expand:../data/coils/finite_magnets_nurbs_data.json",
       "surface_normals": "$path_expand:../data/coils/normals_data.json",
       "bs_opt": "$path_expand:../data/coils/boit_savart_opt.json",
       "optimisation": {
@@ -41,16 +38,52 @@
         }
       },
       "params": {
-        "R_0": { "value": 22.0, "unit": "m" },
-        "R_minor": { "value": 12.2, "unit": "m" },
-        "n_TF_types": { "value": 6, "unit": "" },
-        "fourier_modes_cart": { "value": 9, "unit": "" },
-        "fourier_modes_rot": { "value": 9, "unit": "" },
+        "R_0": {
+          "value": 22.0,
+          "unit": "m",
+          "description": "Major radius for the initial circular coils"
+        },
+        "R_minor": {
+          "value": 12.2,
+          "unit": "m",
+          "description": "Minor radius for the initial circular coils"
+        },
+        "n_TF_types": {
+          "value": 6,
+          "unit": "",
+          "description": "Number of unique coil shapes"
+        },
+        "fourier_modes_cart": {
+          "value": 9,
+          "unit": "",
+          "description": "Number of Fourier modes for each Cartesian component of each coil"
+        },
+        "fourier_modes_rot": {
+          "value": 9,
+          "unit": "",
+          "description": "order of the Fourier expression for the rotation of the filament pack"
+        },
         "base_current": { "value": 1.257, "unit": "MA" },
-        "fil_gap_n": { "value": 0.02, "unit": "m" },
-        "fil_gap_b": { "value": 0.04, "unit": "m" },
-        "n_fil_n": { "value": 2, "unit": "" },
-        "n_fil_b": { "value": 3, "unit": "" },
+        "fil_gap_n": {
+          "value": 0.02,
+          "unit": "m",
+          "description": "Gap between filaments in normal direction"
+        },
+        "fil_gap_b": {
+          "value": 0.04,
+          "unit": "m",
+          "description": "Gap between filaments in bi-normal direction"
+        },
+        "n_fil_n": {
+          "value": 2,
+          "unit": "",
+          "description": "Number of filaments in normal direction"
+        },
+        "n_fil_b": {
+          "value": 3,
+          "unit": "",
+          "description": "Number of filaments in bi-normal direction"
+        },
         "min_coil_sep": { "value": 0.1, "unit": "m" }
       }
     },
