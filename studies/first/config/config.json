@@ -2,7 +2,7 @@
   "params": {},
   "Plasma": {
     "designer": {
-      "run_mode": "run",
+      "run_mode": "read",
       "surface_data": "$path_expand:../data/plasma/finite_plasma_surface_nurbs_data.json",
       "nphi": 64,
       "ntheta": 64,
@@ -11,7 +11,7 @@
   },
   "TF Coil": {
     "designer": {
-      "run_mode": "run",
+      "run_mode": "read",
       "coil_data": "$path_expand:../data/coils/finite_magnets_nurbs_data.json",
       "surface_normals": "$path_expand:../data/coils/normals_data.json",
       "bs_opt": "$path_expand:../data/coils/boit_savart_opt.json",

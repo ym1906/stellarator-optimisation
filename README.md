@@ -29,7 +29,7 @@ conda activate bluemira
 python studies/first/run.py
 ```
 
-To generate the model without running the optimisation problem edit the config json file run modes to 'read'. The existing data files will be used.
+To generate the model there are two run modes which are set in the config json to 'read' to use existing datafiles or 'run' to run the optimisation.
 
 The generated CAD will appear in a display, facilitating further reactor component design and optimisation.
 
