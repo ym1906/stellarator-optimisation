@@ -21,7 +21,7 @@
         "first": {
           "options": {
             "maxiter": 400,
-            "maxcorr": 400,
+            "maxcor": 400,
             "gtol": 1e-20,
             "ftol": 1e-20
           },
@@ -31,7 +31,7 @@
         "second": {
           "options": {
             "maxiter": 400,
-            "maxcorr": 300
+            "maxcor": 300
           },
           "tol": 1e-15,
           "algorithm": "L-BFGS-B"

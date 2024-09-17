@@ -33,6 +33,7 @@ from simsopt.geo import (
 from simsopt.objectives import QuadraticPenalty, SquaredFlux
 
 from stellarator_project.tools import (
+    NURBSCurveData,
     filament_curves_to_nurbs,
     read_json,
     taylor_test,
@@ -107,11 +108,11 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
         rot_order = self.params.fourier_modes_rot.value
         nfil = numfilaments_n * numfilaments_b
 
-        length_pen = self.build_config["length_penalty"]
+        length_pen = self.build_config["optimisation"]["length_penalty"]
         # Threshold and weight for the coil-to-coil distance penalty in the objective
         # function:
-        dist_min = self.params.min_col_sep.value
-        dist_pen = self.build_config["distance_penalty"]
+        dist_min = self.params.min_coil_sep.value
+        dist_pen = self.build_config["optimisation"]["distance_penalty"]
 
         # Create a dictionary to hold filaments for each base coil
         coil_filament_map = {}
@@ -135,10 +136,10 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
             operator.iadd, [[c] * nfil for c in base_currents], []
         )
         curves_fb = apply_symmetries_to_curves(
-            base_curves_finite_build, self.plasma.nfp, True
+            base_curves_finite_build, self.plasma.nfp, stellsym=True
         )
         currents_fb = apply_symmetries_to_currents(
-            base_currents_finite_build, self.plasma.nfp, True
+            base_currents_finite_build, self.plasma.nfp, stellsym=True
         )
         coils_fb = list(starmap(Coil, zip(curves_fb, currents_fb, strict=False)))
         bs = BiotSavart(coils_fb)
@@ -215,10 +216,15 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
             curves=curves,
             numfil=nfil,
             export_path=self.coil_data,
-            plot=False,
+            plot=True,
         )
 
-    def read(self):
+    def read(self) -> dict[str, dict[str, NURBSCurveData]]:
         """Read coil data from json."""
         # curve_surface_normals_data = read_json(curve_surface_normals)
-        return read_json(self.coil_data)
+        return {
+            coil: {
+                filament: NURBSCurveData(**f_data) for filament, f_data in data.items()
+            }
+            for coil, data in read_json(self.coil_data).items()
+        }

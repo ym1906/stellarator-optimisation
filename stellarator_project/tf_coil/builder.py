@@ -6,12 +6,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from bluemira.base.builder import Builder
 from bluemira.base.components import Component, PhysicalComponent
 from bluemira.base.parameter_frame import ParameterFrame
 from bluemira.display.palettes import BLUE_PALETTE
 from bluemira.geometry.tools import loft_shape, make_bspline
+
+if TYPE_CHECKING:
+    from stellarator_project.tools import NURBSCurveData
 
 # The TF coil builder is then passed the centreline from the designer to create
 # the Component and the CAD of the TF coil.
@@ -57,15 +61,15 @@ class TFCoilBuilder(Builder):
         return coils
 
     @staticmethod
-    def create_coil_from_nurbs(name, filaments):
+    def create_coil_from_nurbs(name: str, filaments: dict[str, NURBSCurveData]):
         """Create coil from nurb filaments."""
         filament_wires = [
             make_bspline(
-                poles=curve_dict["poles"],
-                mults=curve_dict["mults"],
-                knots=curve_dict["internal_knot_vector"],
-                degree=curve_dict["degree"],
-                weights=curve_dict["weights"],
+                poles=curve_dict.poles,
+                mults=curve_dict.mults,
+                knots=curve_dict.internal_knot_vector,
+                degree=curve_dict.degree,
+                weights=curve_dict.weights,
                 periodic=False,
                 check_rational=False,
                 label=filament_name,

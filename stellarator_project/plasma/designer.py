@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: MIT
 """Plasma Designer."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from bluemira.base.designer import Designer
@@ -10,7 +12,7 @@ from bluemira.base.parameter_frame import ParameterFrame
 from bluemira.geometry.parameterisations import GeometryParameterisation
 from simsopt.geo import SurfaceRZFourier
 
-from stellarator_project.tools import read_json, surface_to_nurbs
+from stellarator_project.tools import NURBSData, read_json, surface_to_nurbs
 
 
 @dataclass
@@ -24,7 +26,7 @@ class PlasmaDesigner(Designer[GeometryParameterisation]):
     params: PlasmaDesignerParams
     param_cls = PlasmaDesignerParams
 
-    def run(self) -> GeometryParameterisation:
+    def run(self) -> tuple[NURBSData, SurfaceRZFourier]:
         """Build the LCFS, returning a closed wire defining its outline."""
         s = SurfaceRZFourier.from_wout(
             self.build_config["input_nc3"],
@@ -35,9 +37,9 @@ class PlasmaDesigner(Designer[GeometryParameterisation]):
         return surface_to_nurbs(
             simsopt_surface=s,
             export_path=self.build_config.get("surface_data"),
-            plot=False,
+            plot=True,
         ), s
 
-    def read(self):
+    def read(self) -> tuple[NURBSData, None]:
         """Read surface data from json."""
-        return read_json(self.build_config["surface_data"]), None
+        return NURBSData(**read_json(self.build_config["surface_data"])), None
