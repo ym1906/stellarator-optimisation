@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from bluemira.base.builder import Builder
 from bluemira.base.components import Component, PhysicalComponent
+from bluemira.base.look_and_feel import bluemira_debug
 from bluemira.base.parameter_frame import ParameterFrame
 from bluemira.display.palettes import BLUE_PALETTE
 from bluemira.geometry.tools import loft_shape, make_bspline
@@ -77,6 +78,11 @@ class TFCoilBuilder(Builder):
             for filament_name, curve_dict in filaments.items()
         ]
 
+        # Order wires rotationally. Previous input was in rows to create positive volumes
+        # TODO @je-cook: This is not robust and should be improved if possible
+        # 7
+        filament_wires = filament_wires[:3] + filament_wires[3:][::-1]
+
         # Create the lofted surface from the filament curves
         coil = loft_shape(
             filament_wires,
@@ -85,15 +91,6 @@ class TFCoilBuilder(Builder):
             closed=True,
             label=name,
         )
-        print(
-            "L:",
-            coil.shape.Length,
-            "A:",
-            coil.shape.Area,
-            "V",
-            coil.shape.Volume,
-        )
-        # There is something not right about the volume,
-        # I am not using makeloft correctly..
-        # The volume is negative...and anyway we need to add filament thickness.
+        bluemira_debug(f"L: {coil.length} A: {coil.area} V {coil.volume}")
+
         return coil
