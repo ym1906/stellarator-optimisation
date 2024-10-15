@@ -9,7 +9,7 @@
 
 ## Installation
 
-Once you have a bluemira conda environemt setup you can install this project with
+Once you have a [bluemira](https://bluemira.readthedocs.io/en/develop/installation.html) conda environemt setup you can install this project with
 
 ```bash
 pip install git+https://github.com/ym1906/stellarator-optimisation.git
