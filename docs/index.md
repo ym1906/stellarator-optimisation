@@ -1,18 +1,7 @@
-# Welcome to MkDocs
+# Introduction
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+The `stellarator_project` package. Stellarator optimisation
 
-## Commands
+## Examples
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
-
-## Project Overview
-
-::: stellarator_project
-
-## Acknowledgments
-
-Acknowledgments.
+See [examples](examples) for how to use the package.

@@ -1,1 +1,0 @@
-::: stellarator_project.reactor

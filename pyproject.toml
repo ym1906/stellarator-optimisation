@@ -42,22 +42,37 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "stellarator_project/_version.py"
 
+# env: default
+[tool.hatch.envs.default]
+features = ["dev", "test", "docs", "lint"]
+
 # env: docs
-# [tool.hatch.envs.docs]
-# features = ["docs"]
-# [tool.hatch.envs.docs.scripts]
-# build = "mkdocs build"
-# serve = "mkdocs serve"
+[tool.hatch.envs.docs]
+features = ["docs"]
+[tool.hatch.envs.docs.scripts]
+build = "mkdocs build"
+serve = "mkdocs serve"
+deploy = "mkdocs gh-deploy"
 
 # env: lint
-# [tool.hatch.envs.lint]
-# detached = true                               # Don't inherit from default (does not download project dependencies)
-# dependencies = ["ruff", "mypy", "pre-commit"]
-# [tool.hatch.envs.lint.scripts]
-# typing = "mypy --install-types --non-interactive {args:src/stellarator_project tests}"
-# style = ["ruff {args:.}"]
-# fmt = ["pre-commit run --all-files --hook-stage manual"]
-# all = ["style", "typing"]
+[tool.hatch.envs.lint]
+detached     = true                           # Don't inherit from default (does not download project dependencies)
+dependencies = ["ruff", "mypy", "pre-commit"]
+[tool.hatch.envs.lint.scripts]
+typing = "mypy --install-types --non-interactive {args:stellarator_project tests}"
+style  = ["ruff {args:check .}"]
+fmt    = ["pre-commit run --all-files --hook-stage manual"]
+all    = ["style", "typing"]
+
+# env: test
+[tool.hatch.envs.test]
+features = ["test"]
+[[tool.hatch.envs.test.matrix]]
+python = ["3.10", "3.11", "3.12"]
+[tool.hatch.envs.test.scripts]
+tests      = "pytest {args:tests}"
+tests-cov  = "pytest --cov stellarator_project  --cov-report html:htmlcov_stellarator_project --cov-report xml {args:tests}"
+tests-cov-private  = "pytest --private --cov stellarator_project --cov-report html:htmlcov --cov-report xml {args:tests}"
 
 # tool: ruff
 [tool.ruff]
