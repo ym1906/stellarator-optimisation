@@ -81,7 +81,8 @@ class TFCoilBuilder(Builder):
         # Order wires rotationally. Previous input was in rows to create positive volumes
         # TODO @je-cook: This is not robust and should be improved if possible
         # 7
-        filament_wires = filament_wires[:3] + filament_wires[3:][::-1]
+        size = len(filament_wires) // 2
+        filament_wires = filament_wires[:size] + filament_wires[size:][::-1]
 
         # Create the lofted surface from the filament curves
         coil = loft_shape(

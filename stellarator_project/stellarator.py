@@ -43,7 +43,11 @@ def build_plasma(reactor_config: ReactorConfig):
         plasma_parameterisation,
         reactor_config.config_for("Plasma"),
     )
-    return Plasma(plasma_builder.build(), surface=s)
+    return Plasma(
+        plasma_builder.build(),
+        surface=s,
+        n_field_periods=plasma_parameterisation.n_field_periods,
+    )
 
 
 def build_tf(reactor_config: ReactorConfig, s):
@@ -66,9 +70,10 @@ def main(build_config: BuildConfig) -> MyReactor:
     """Main reactor function."""
     reactor_config = ReactorConfig(build_config, EmptyFrame)
 
-    reactor = MyReactor("Simple Example", n_sectors=1)
+    plasma = build_plasma(reactor_config)
+    reactor = MyReactor("Simple Example", n_sectors=plasma.n_field_periods)
 
-    reactor.plasma = build_plasma(reactor_config)
+    reactor.plasma = plasma
     reactor.tf_coil = build_tf(reactor_config, reactor.plasma.surface)
 
     return reactor

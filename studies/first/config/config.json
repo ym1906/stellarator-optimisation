@@ -15,6 +15,7 @@
       "coil_data": "$path_expand:../data/coils/finite_magnets_nurbs_data.json",
       "surface_normals": "$path_expand:../data/coils/normals_data.json",
       "bs_opt": "$path_expand:../data/coils/boit_savart_opt.json",
+      "plot": true,
       "optimisation": {
         "length_penalty": 1e-2,
         "distance_penalty": 10,

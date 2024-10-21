@@ -42,6 +42,7 @@ from stellarator_project.tools import (
 if TYPE_CHECKING:
     from bluemira.base.parameter_frame.typed import ParameterFrameLike
     from bluemira.base.reactor_config import ConfigParams
+    from simsopt.geo import SurfaceRZFourier
 
 
 @dataclass
@@ -80,27 +81,19 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
         self,
         params: ParameterFrameLike,
         build_config: ConfigParams,
-        plasma,
+        plasma: SurfaceRZFourier,
     ):
         super().__init__(params, build_config)
         self.plasma = plasma
         self.coil_data = self.build_config["coil_data"]
 
-    def run(self) -> GeometryParameterisation:  # noqa: PLR0914, PLR0915
+    def run(self) -> GeometryParameterisation:  # noqa: PLR0914
         """Run the design of the TF coil."""
-        # Create the initial coils
         ncoils = self.params.n_TF_types.value
         r0 = self.params.R_0.value
         r1 = self.params.R_minor.value
         order = self.params.fourier_modes_cart.value
 
-        base_curves = create_equally_spaced_curves(
-            ncoils, self.plasma.nfp, stellsym=True, R0=r0, R1=r1, order=order
-        )
-        base_currents = [Current(self.params.base_current.value) for i in range(ncoils)]
-        base_currents[0].fix_all()  # Fix the first current to avoid trivial solution
-
-        # use sum here to concatenate lists
         numfilaments_n = self.params.n_fil_n.value
         numfilaments_b = self.params.n_fil_b.value
         gapsize_n = self.params.fil_gap_n.value
@@ -108,19 +101,22 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
         rot_order = self.params.fourier_modes_rot.value
         nfil = numfilaments_n * numfilaments_b
 
+        # Threshold and weight for the coil-to-coil
+        # distance penalty in the objective function
         length_pen = self.build_config["optimisation"]["length_penalty"]
-        # Threshold and weight for the coil-to-coil distance penalty in the objective
-        # function:
         dist_min = self.params.min_coil_sep.value
         dist_pen = self.build_config["optimisation"]["distance_penalty"]
 
-        # Create a dictionary to hold filaments for each base coil
-        coil_filament_map = {}
+        # Create the initial coils
+        base_curves = create_equally_spaced_curves(
+            ncoils, self.plasma.nfp, stellsym=True, R0=r0, R1=r1, order=order
+        )
+        base_currents = [Current(self.params.base_current.value) for i in range(ncoils)]
+        base_currents[0].fix_all()  # Fix the first current to avoid trivial solution
 
         # Create the filaments and group them by coil name
-        for i, base_curve in enumerate(base_curves):
-            coil_name = f"coil_{i + 1}"
-            filaments = create_multifilament_grid(
+        coil_filament_map = {
+            f"coil_{i + 1}": create_multifilament_grid(
                 base_curve,
                 numfilaments_n,
                 numfilaments_b,
@@ -128,7 +124,9 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
                 gapsize_b,
                 rotation_order=rot_order,
             )
-            coil_filament_map[coil_name] = filaments
+            for i, base_curve in enumerate(base_curves)
+        }
+
         base_curves_finite_build = functools.reduce(
             operator.iadd, coil_filament_map.values(), []
         )
@@ -149,7 +147,6 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
         curves = [c.curve for c in coils_fb]
 
         # Define the individual terms of the objective function
-        # Define the objective function:
         Jf = SquaredFlux(self.plasma, bs)  # noqa: N806
         Jls = [CurveLength(c) for c in base_curves]  # noqa: N806
         Jdist = CurveCurveDistance(curves, dist_min)  # noqa: N806
@@ -212,11 +209,14 @@ class TFCoilDesigner(Designer[GeometryParameterisation]):
         # Save the optimized coil shapes and currents
         bs.save(self.build_config["bs_opt"])
 
+        curves = np.roll(curves, self.params.n_TF_types.value * nfil)[
+            : 2 * self.params.n_TF_types.value * nfil
+        ].tolist()
         return filament_curves_to_nurbs(
             curves=curves,
             numfil=nfil,
             export_path=self.coil_data,
-            plot=True,
+            plot=self.build_config.get("plot", False),
         )
 
     def read(self) -> dict[str, dict[str, NURBSCurveData]]:

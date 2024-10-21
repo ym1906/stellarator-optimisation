@@ -14,6 +14,7 @@ import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 from bluemira.base.look_and_feel import bluemira_print, bluemira_print_flush
+from bluemira.geometry.coordinates import Coordinates
 from geomdl import NURBS, helpers
 from scipy.spatial import KDTree
 from simsopt.geo import CurveXYZFourier
@@ -57,9 +58,10 @@ class NURBSData:
     weights_reshaped: list[list[float]]
     mults_u: list[int]
     mults_v: list[int]
+    n_field_periods: int
 
     @classmethod
-    def from_surface(cls, surf: NURBS.Surface) -> NURBSData:
+    def from_surface(cls, surf: NURBS.Surface, n_field_periods: int) -> NURBSData:
         """Extract NURBS data from a geomdl NURBS surface."""
         control_points = surf.ctrlpts
         control_points_size_u = surf.ctrlpts_size_u
@@ -110,6 +112,7 @@ class NURBSData:
             weights_reshaped,
             mults_u,
             mults_v,
+            n_field_periods,
         )
 
     def write_to_json(self, file_path):
@@ -328,8 +331,14 @@ def extract_points_from_simsopt_surface(simsopt_surface: Any) -> np.ndarray:
     :rtype: np.ndarray.
     """
     points = simsopt_surface.gamma()
-    points = np.concatenate((points, points[:, :1, :]), axis=1)
-    return np.concatenate((points, points[:1, :, :]), axis=0)
+    points = np.concatenate(
+        (points, points[:, -1, :][:, None] + np.diff(points[:, (-1, 0), :], axis=1)),
+        axis=1,
+    )
+
+    out = Coordinates(points[0, :, :])
+    out.rotate(direction=(0, 0, 1), degree=360 / simsopt_surface.nfp)
+    return np.concatenate((points, out.xyz.T[None]), axis=0)
 
 
 def extract_points_from_simsopt_curve(simsopt_curve: Any) -> np.ndarray:
@@ -395,7 +404,7 @@ def surface_to_nurbs(
     nurbs = setup_nurbs_surface(
         points=points, degree_u=3, degree_v=3, n_phi=n_phi, n_theta=n_theta
     )
-    nurbs_data = NURBSData.from_surface(nurbs)
+    nurbs_data = NURBSData.from_surface(nurbs, simsopt_surface.nfp)
     nurbs_data.write_to_json(export_path)
     if plot:
         plot_nurbs(nurbs)
@@ -448,19 +457,18 @@ def filament_curves_to_nurbs(
         coil = coils_data[f"coil_{i + 1}"] = {}
 
         bluemira_print_flush(f"Processing coil {i + 1}...")
-
+        nurbs = []
         for j in range(numfil):
             index = i * numfil + j
-            # print(f"  Processing filament {j + 1} for coil {i + 1} (index {index})...")
 
             points = extract_points_from_simsopt_curve(curves[index])
-            nurbs = setup_nurbs_curve(points=points, degree=3)
-            nurbs_curve_data = NURBSCurveData.from_curve(nurbs)
+            nurbs.append(setup_nurbs_curve(points=points, degree=3))
+            nurbs_curve_data = NURBSCurveData.from_curve(nurbs[-1])
 
             coil[f"filament_{j + 1}"] = nurbs_curve_data
 
-            if plot:
-                plot_nurbs(nurbs)
+        if plot:
+            plot_nurbs(*nurbs)
 
     with open(export_path, "w") as f:
         json.dump(
@@ -566,7 +574,7 @@ def load_curves_from_data(coil_data, centers, order=None, ppp=20):
     return coils
 
 
-def _mpl_3d_scat(data, title):
+def _mpl_3d_scat(data, title: str):
     _f, ax = plt.subplots(subplot_kw={"projection": "3d"})
     ax.scatter(
         xs=data[:, 0],
@@ -577,11 +585,12 @@ def _mpl_3d_scat(data, title):
     ax.set_ylabel("Y")
     ax.set_zlabel("Z")
     ax.set_title(title)
-    plt.show()
 
 
-def plot_nurbs(surf: NURBS.Surface | NURBS.Curve) -> None:
+def plot_nurbs(*surf: NURBS.Surface | NURBS.Curve) -> None:
     """Plot the NURBS surface using Plotly."""
-    surf.evaluate()
-    evaluated_points = np.array(surf.evalpts)
-    _mpl_3d_scat(evaluated_points, "NURBS Surface")
+    for s in surf:
+        s.evaluate()
+        evaluated_points = np.array(s.evalpts)
+        _mpl_3d_scat(evaluated_points, "NURBS Surface")
+    plt.show()
