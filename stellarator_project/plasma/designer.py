@@ -30,7 +30,7 @@ class PlasmaDesigner(Designer[GeometryParameterisation]):
         """Build the LCFS, returning a closed wire defining its outline."""
         s = SurfaceRZFourier.from_wout(
             self.build_config["input_nc3"],
-            range="full torus",
+            range=SurfaceRZFourier.RANGE_FIELD_PERIOD,
             nphi=self.build_config.get("nphi", 64),
             ntheta=self.build_config.get("ntheta", 64),
         )

@@ -8,6 +8,8 @@ from __future__ import annotations
 from bluemira.base.builder import Builder
 from bluemira.base.components import Component, PhysicalComponent
 from bluemira.display.palettes import BLUE_PALETTE
+from bluemira.geometry.shell import BluemiraShell
+from bluemira.geometry.solid import BluemiraSolid
 from bluemira.geometry.tools import make_bsplinesurface
 
 
@@ -31,17 +33,21 @@ class PlasmaBuilder(Builder):
     def build_xyz(self) -> PhysicalComponent:
         """Build the plasma."""
         # Create a plasma surface from NURBS surface data
-        plasma_surface = make_bsplinesurface(
-            poles=self.s_data.poles2d,
-            mults_u=self.s_data.mults_u,
-            mults_v=self.s_data.mults_v,
-            knot_vector_u=self.s_data.internal_knot_vector_u,
-            knot_vector_v=self.s_data.internal_knot_vector_v,
-            degree_u=self.s_data.degree_u,
-            degree_v=self.s_data.degree_v,
-            weights=self.s_data.weights_reshaped,
-            periodic=False,
-            check_rational=False,
+        plasma_surface = BluemiraSolid(
+            BluemiraShell(
+                make_bsplinesurface(
+                    poles=self.s_data.poles2d,
+                    mults_u=self.s_data.mults_u,
+                    mults_v=self.s_data.mults_v,
+                    knot_vector_u=self.s_data.internal_knot_vector_u,
+                    knot_vector_v=self.s_data.internal_knot_vector_v,
+                    degree_u=self.s_data.degree_u,
+                    degree_v=self.s_data.degree_v,
+                    weights=self.s_data.weights_reshaped,
+                    periodic=False,
+                    check_rational=False,
+                )
+            )
         )
 
         component = PhysicalComponent("LCFS", plasma_surface)
