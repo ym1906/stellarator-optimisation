@@ -1,18 +1,71 @@
-site_name: stellarator-project
-site_description: <set:docs-site-description>
+site_name: stellarator_project Documentation
+site_description: Stellarator optimisation
 # site_url: <set:docs-site-url>
-repo_name: <set:repo-name>
+repo_name: ym1906/stellarator_project
 # repo_url: <set:repo-url>
-theme:
-  name: material
 watch:
   - stellarator_project
+
 plugins:
-  - mkdocstrings
   - search
   - autorefs
+  - gen-files:
+      scripts:
+        - scripts/gen_api_ref.py
+  - literate-nav:
+      nav_file: overview.md
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      primary: orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      primary: black
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+  features:
+    - navigation.tabs
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.sections
+    - navigation.path
+    - navigation.top
+    - navigation.tracking
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      use_pygments: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+
 nav:
   - index.md
-  - examples.md
-  - Code Reference:
-      - reactor.py: reference/stellarator_project.reactor.md
+  - Examples: examples/
+  - API Reference: reference/
