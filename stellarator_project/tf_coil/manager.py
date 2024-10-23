@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-present {{ copyright-holder }} <{{ copyright-holder-email }}>
+# SPDX-FileCopyrightText: 2024-present United Kingdom Atomic Energy Authority
 #
 # SPDX-License-Identifier: MIT
 """TFCoil component manager."""
