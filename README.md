@@ -1,18 +1,12 @@
-# stellarator-project
+# bluemira-stellarator
 
 ---
-
-**Table of Contents**
-
-- [Installation](#installation)
-- [License](#license)
-
 ## Installation
 
-Once you have a [bluemira](https://bluemira.readthedocs.io/en/develop/installation.html) conda environemt setup you can install this project with
+Once you have a [bluemira](https://bluemira.readthedocs.io/en/develop/installation.html) conda environment setup you can install this project with
 
 ```bash
-pip install git+https://github.com/ym1906/stellarator-optimisation.git
+pip install git+https://github.com/Fusion-Power-Plant-Framework/bluemira-stellarator.git
 ```
 ## Running reactor designs
 
@@ -33,4 +27,4 @@ To generate the model there are two run modes which are set in the config json t
 
 The generated CAD will appear in a display, facilitating further reactor component design and optimisation.
 
-![Alt text](https://github.com/ym1906/stellarator/blob/main/docs/stellarator_coils_cad.png)
+![Alt text](https://github.com/Fusion-Power-Plant-Framework/bluemira-stellarator/blob/main/docs/stellarator_coils_cad.png)
